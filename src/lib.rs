@@ -50,7 +50,7 @@
 //! attributes and so is able to use any syntax that parses as a valid token tree. Deluxe also does
 //! not provide extra traits for parsing special `syn` objects like
 //! [`DeriveInput`](syn::DeriveInput) and [`Field`](syn::Field). Instead, Deluxe uses a generic
-//! trait to parse from any type containing a <code>[Vec]&lt;[syn::Attribute]></code>.
+//! trait to parse from any type containing a <code>[Vec]&lt;[`syn::Attribute`]></code>.
 //!
 //! ### Examples
 //!

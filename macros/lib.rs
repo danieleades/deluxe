@@ -11,7 +11,7 @@ mod util;
 mod parse_attributes;
 mod parse_meta_item;
 mod types;
-use util::*;
+use util::get_crate_path;
 
 use deluxe_core::Errors;
 use proc_macro::TokenStream;
@@ -35,7 +35,11 @@ pub fn derive_extract_attributes(item: TokenStream) -> TokenStream {
     let errors = Errors::new();
     let mut tokens = util::parse::<syn::DeriveInput>(item, &errors)
         .map(|input| {
-            parse_attributes::impl_parse_attributes(input, &errors, parse_attributes::Mode::Extract)
+            parse_attributes::impl_parse_attributes(
+                &input,
+                &errors,
+                parse_attributes::Mode::Extract,
+            )
         })
         .unwrap_or_default();
     tokens.extend(errors.into_compile_errors());
@@ -115,7 +119,7 @@ pub fn derive_parse_attributes(item: TokenStream) -> TokenStream {
     let errors = Errors::new();
     let mut tokens = util::parse::<syn::DeriveInput>(item, &errors)
         .map(|input| {
-            parse_attributes::impl_parse_attributes(input, &errors, parse_attributes::Mode::Parse)
+            parse_attributes::impl_parse_attributes(&input, &errors, parse_attributes::Mode::Parse)
         })
         .unwrap_or_default();
     tokens.extend(errors.into_compile_errors());
@@ -167,7 +171,7 @@ pub fn derive_parse_attributes(item: TokenStream) -> TokenStream {
 ///
 ///   This attribute is a simple wrapper around
 ///   [`Result::and_then`](deluxe_core::Result::and_then). The function returned by `expr` must
-///   conform to the signature <code>fn(T) -> [deluxe::Result](deluxe_core::Result)&lt;T></code>
+///   conform to the signature <code>fn(T) -> [`deluxe::Result`](deluxe_core::Result)&lt;T></code>
 ///   where `T` is the type of the struct/enum being parsed. Returning
 ///   [`Err`](deluxe_core::Result::Err) will cause the entire parse to fail.
 ///
@@ -333,13 +337,13 @@ pub fn derive_parse_attributes(item: TokenStream) -> TokenStream {
 ///
 ///   For `map`, the function returned by `expr` must conform to the signature `fn(T) -> U`. For
 ///   `and_then`, the function returned by `expr` must conform to the signature <code>fn(T) ->
-///   [deluxe::Result](deluxe_core::Result)&lt;U></code>. Returning
+///   [`deluxe::Result`](deluxe_core::Result)&lt;U></code>. Returning
 ///   [`Err`](deluxe_core::Result::Err) will cause the entire parse to fail. Arbitrary types can be
 ///   used for `T` and `U` as long as the following constraints hold:
 ///
 ///   - The first function must have a fully specified type for `T`, which will have its
 ///   [`ParseMetaItem`](deluxe_core::ParseMetaItem) implementation used.
-///   - The `U from any function in the chain matches the `T` for the following function.
+///   - The `U` from any function in the chain matches the `T` for the following function.
 ///   - The last function must have a type for `U` that matches the type of the field.
 ///
 ///   ##### Example
@@ -401,7 +405,7 @@ pub fn derive_parse_attributes(item: TokenStream) -> TokenStream {
 pub fn derive_parse_meta_item(item: TokenStream) -> TokenStream {
     let errors = Errors::new();
     let mut tokens = util::parse::<syn::DeriveInput>(item, &errors)
-        .map(|input| parse_meta_item::impl_parse_meta_item(input, &errors))
+        .map(|input| parse_meta_item::impl_parse_meta_item(&input, &errors))
         .unwrap_or_default();
     tokens.extend(errors.into_compile_errors());
     tokens.into()

@@ -132,7 +132,7 @@ impl<'v> Variant<'v> {
             syn::Fields::Unnamed(_) => Some(quote_mixed! {
                 let mut index = 0usize;
             }),
-            _ => None,
+            syn::Fields::Unit => None,
         };
         if let Some(flat) = flat {
             // unknown fields in an empty key really means the variant is unknown,
@@ -471,12 +471,13 @@ impl<'v> Variant<'v> {
         }
         self.fields
             .iter()
-            .map(|field| match &field.flatten {
-                Some(FieldFlatten {
+            .map(|field| {
+                if let Some(FieldFlatten {
                     value: true,
                     prefix,
                     ..
-                }) => {
+                }) = &field.flatten
+                {
                     let ty = &field.field.ty;
                     let names = quote_spanned! { ty.span() =>
                         <#ty as #crate_::ParseMetaFlatNamed>::field_names()
@@ -486,8 +487,7 @@ impl<'v> Variant<'v> {
                         .map(parse_helpers::key_to_string)
                         .unwrap_or_default();
                     quote_mixed! { (#prefix, #names) }
-                }
-                _ => {
+                } else {
                     let idents = field.idents.iter().map(|i| i.to_string());
                     quote_mixed! { ("", &[#(#idents),*]) }
                 }

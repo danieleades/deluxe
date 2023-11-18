@@ -1,4 +1,11 @@
-use crate::{parse_helpers::*, Errors, Result};
+use crate::{
+    parse_helpers::{
+        flag_disallowed_error, inputs_span, key_to_string, missing_field_error, parse_first,
+        parse_named_meta_item, parse_struct, parse_tuple_struct, skip_meta_item, Brace, Bracket,
+        FieldStatus, Paren, ParseDelimited,
+    },
+    Errors, Result,
+};
 use proc_macro2::Span;
 use quote::ToTokens;
 use std::{
@@ -32,17 +39,18 @@ impl ParseMode {
     pub fn to_named(&self, input: ParseStream) -> Self {
         match self {
             Self::Unnamed => Self::Named(input.span()),
-            m => *m,
+            m @ Self::Named(_) => *m,
         }
     }
     /// Gets the stored [`Span`](proc_macro2::Span).
     ///
     /// If `self` is [`Unnamed`](Self::Unnamed), returns [`None`].
     #[inline]
+    #[must_use]
     pub fn named_span(&self) -> Option<Span> {
         match self {
             Self::Named(s) => Some(*s),
-            _ => None,
+            Self::Unnamed => None,
         }
     }
     /// Gets the stored [`Span`](proc_macro2::Span).
@@ -55,7 +63,7 @@ impl ParseMode {
     }
     /// Gets the stored [`Span`](proc_macro2::Span).
     ///
-    /// If `self` is [`Unnamed`](Self::Unnamed), returns <code>[inputs_span]\(inputs)</code>.
+    /// If `self` is [`Unnamed`](Self::Unnamed), returns <code>[`inputs_span`]\(inputs)</code>.
     #[inline]
     pub fn to_full_span<'s, S: Borrow<ParseBuffer<'s>>>(&self, inputs: &[S]) -> Span {
         self.named_span().unwrap_or_else(|| inputs_span(inputs))
@@ -133,7 +141,7 @@ pub trait ParseMetaItem: Sized {
     ///
     /// Only called when a required (non-default) field was omitted from a parsed attribute.
     /// Implementations on types that implement [`Default`] will most likely want to return
-    /// <code>[Ok]\([Default::default]\(\)\)</code> here.
+    /// <code>[Ok]\([`Default::default`]\(\)\)</code> here.
     ///
     /// The default implementation returns an error.
     #[inline]
@@ -483,13 +491,15 @@ impl<T: ParseMetaItem, const N: usize> ParseMetaFlatUnnamed for [T; N] {
         let errors = Errors::new();
         let mut failed = 0;
         errors.push_result(parse_tuple_struct(inputs, N, |stream, _, _| {
-            match errors.push_result(T::parse_meta_item(stream, ParseMode::Unnamed)) {
-                Some(v) => a.push(v),
-                None => {
-                    failed += 1;
-                    skip_meta_item(stream);
-                }
-            }
+            errors
+                .push_result(T::parse_meta_item(stream, ParseMode::Unnamed))
+                .map_or_else(
+                    || {
+                        failed += 1;
+                        skip_meta_item(stream);
+                    },
+                    |v| a.push(v),
+                );
             Ok(())
         }));
         if a.len() + failed != N {
@@ -1066,11 +1076,11 @@ impl ParseMetaItem for proc_macro2::Group {
     fn parse_meta_item(input: ParseStream, _mode: ParseMode) -> Result<Self> {
         input.step(|cursor| {
             for delim in {
-                use proc_macro2::Delimiter::*;
+                use proc_macro2::Delimiter::{Brace, Bracket, None, Parenthesis};
                 [Parenthesis, Brace, Bracket, None]
             } {
                 if let Some((group, _, cursor)) = cursor.group(delim) {
-                    return Ok((proc_macro2::Group::new(delim, group.token_stream()), cursor));
+                    return Ok((Self::new(delim, group.token_stream()), cursor));
                 }
             }
             Err(crate::Error::new(
@@ -1224,7 +1234,7 @@ impl<T: ParseMetaItem, P: Parse + Peek + Default> ParseMetaFlatUnnamed for Punct
         _mode: ParseMode,
         _index: usize,
     ) -> Result<Self> {
-        let mut p = Punctuated::new();
+        let mut p = Self::new();
         let errors = Errors::new();
         for input in inputs {
             let input = input.borrow();
@@ -1384,7 +1394,7 @@ impl_parse_meta_paren_item_syn!(syn::MetaNameValue);
 impl ParseMetaItem for syn::Pat {
     #[inline]
     fn parse_meta_item(input: ParseStream, _mode: ParseMode) -> Result<Self> {
-        syn::Pat::parse_single(input)
+        Self::parse_single(input)
     }
 }
 #[cfg(feature = "full")]

@@ -61,10 +61,10 @@ impl ParseMetaItem for StructTransparent {
         errors.push_result(parse_helpers::parse_struct(inputs, |input, path, span| {
             match path {
                 "flatten_named" => {
-                    flatten_named.parse_named_item("flatten_named", input, span, &errors)
+                    flatten_named.parse_named_item("flatten_named", input, span, &errors);
                 }
                 "flatten_unnamed" => {
-                    flatten_unnamed.parse_named_item("flatten_unnamed", input, span, &errors)
+                    flatten_unnamed.parse_named_item("flatten_unnamed", input, span, &errors);
                 }
                 "append" => append.parse_named_item("append", input, span, &errors),
                 "rest" => rest.parse_named_item("rest", input, span, &errors),
@@ -529,7 +529,7 @@ impl<'s> ParseAttributes<'s, syn::DeriveInput> for Struct<'s> {
                     }
                     if let Some(c) = field.container.as_ref() {
                         if container.is_some() {
-                            errors.push(c.span(), "Duplicate `container` field")
+                            errors.push(c.span(), "Duplicate `container` field");
                         } else {
                             container = Some(c);
                         }

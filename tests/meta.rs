@@ -1111,7 +1111,7 @@ fn field_defaults() {
     ::std::assert_eq!(
         parse(q! { { value = 123 } }).unwrap(),
         FieldDefaults {
-            name: MyNewtype(String::from("")),
+            name: MyNewtype(String::new()),
             value0: 0,
             value1: 1,
             value: 123,
@@ -1593,11 +1593,25 @@ fn positional_and_named() {
 
     ::std::assert_eq!(
         parse(q! { (1) }).unwrap(),
-        PositionalAndNamed(1, 0, MyOptionalNamed { a: 0, b: "".into() })
+        PositionalAndNamed(
+            1,
+            0,
+            MyOptionalNamed {
+                a: 0,
+                b: String::new()
+            }
+        )
     );
     ::std::assert_eq!(
         parse(q! { (1, 2) }).unwrap(),
-        PositionalAndNamed(1, 2, MyOptionalNamed { a: 0, b: "".into() })
+        PositionalAndNamed(
+            1,
+            2,
+            MyOptionalNamed {
+                a: 0,
+                b: String::new()
+            }
+        )
     );
     ::std::assert_eq!(
         parse(q! { (1, 2, b = "4" ) }).unwrap(),
@@ -1641,7 +1655,14 @@ fn positional_and_named() {
             1,
             MyUnnamed(2, "3".into()),
             0,
-            PositionalAndNamed(0, 0, MyOptionalNamed { a: 0, b: "".into() })
+            PositionalAndNamed(
+                0,
+                0,
+                MyOptionalNamed {
+                    a: 0,
+                    b: String::new()
+                }
+            )
         )
     );
     ::std::assert_eq!(
@@ -1650,7 +1671,14 @@ fn positional_and_named() {
             1,
             MyUnnamed(2, "3".into()),
             4,
-            PositionalAndNamed(5, 0, MyOptionalNamed { a: 0, b: "".into() })
+            PositionalAndNamed(
+                5,
+                0,
+                MyOptionalNamed {
+                    a: 0,
+                    b: String::new()
+                }
+            )
         )
     );
     ::std::assert_eq!(

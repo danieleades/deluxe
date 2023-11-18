@@ -3,7 +3,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
-use crate::types::*;
+use crate::types::{Enum, FieldDefault, ItemDef, Struct, TokenMode};
 
 struct MetaDef {
     pub parse: TokenStream,
@@ -32,8 +32,7 @@ fn impl_for_struct(
 
     let any_flat = struct_attr
         .as_ref()
-        .map(|s| s.fields.iter().any(|f| f.is_flat()))
-        .unwrap_or(false);
+        .map_or(false, |s| s.fields.iter().any(|f| f.is_flat()));
     let (parse, parse_flat, inline, flag, field_names, mut extra) = struct_attr
         .as_mut()
         .map(|struct_attr| {
@@ -105,7 +104,7 @@ fn impl_for_struct(
                         #priv_::Option::Some(#field_count #( +  #extra_counts)*)
                     })
                 }
-                _ => None,
+                syn::Fields::Unit => None,
             };
             (parse, parse_flat, inline, flag, field_names, extra_traits)
         })
@@ -323,16 +322,16 @@ fn impl_for_enum(input: &syn::DeriveInput, errors: &Errors) -> Option<MetaDef> {
     })
 }
 
-pub fn impl_parse_meta_item(input: syn::DeriveInput, errors: &Errors) -> TokenStream {
+pub fn impl_parse_meta_item(input: &syn::DeriveInput, errors: &Errors) -> TokenStream {
     let meta = match &input.data {
-        syn::Data::Struct(struct_) => impl_for_struct(&input, struct_, errors),
-        syn::Data::Enum(_) => impl_for_enum(&input, errors),
+        syn::Data::Struct(struct_) => impl_for_struct(input, struct_, errors),
+        syn::Data::Enum(_) => impl_for_enum(input, errors),
         syn::Data::Union(union) => {
             errors.push_spanned(
                 union.union_token,
                 "union not supported with derive(ParseMetaItem)",
             );
-            return Default::default();
+            return TokenStream::default();
         }
     };
     let MetaDef {
@@ -345,7 +344,7 @@ pub fn impl_parse_meta_item(input: syn::DeriveInput, errors: &Errors) -> TokenSt
         priv_path: priv_,
     } = match meta {
         Some(m) => m,
-        None => return Default::default(),
+        None => return TokenStream::default(),
     };
 
     let ident = &input.ident;

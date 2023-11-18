@@ -45,7 +45,7 @@ where
 {
     let iter = attrs.into_iter();
     let mut search = iter.clone().cloned().map(|f| f.1.into());
-    let first_is_some = search.next().map(|f| f.is_some()).unwrap_or(false);
+    let first_is_some = search.next().is_some_and(|f| f.is_some());
     if search.any(|f| f.is_some() != first_is_some) {
         let mut names = String::new();
         for (n, o) in iter.clone().cloned() {
@@ -98,7 +98,7 @@ macro_rules! _spanned_arg {
 ///
 /// The rest of the arguments are either identifiers or 2-element tuples. Identifiers must be an
 /// `Option<T>` and tuples must be `(&str, Option<&T>)`, where `&T` is castable to <code>&dyn
-/// [syn::spanned::Spanned]</code>. Identifiers will automatically [`stringify`] the identifier
+/// [`syn::spanned::Spanned`]</code>. Identifiers will automatically [`stringify`] the identifier
 /// name to use in the error message, and so should used when the field name is the same as the
 /// variable name. The tuple form can be used to specify a different field name from the name of
 /// the variable. The identifier form is intended to make it easier to do validations by
@@ -140,7 +140,7 @@ macro_rules! only_one {
 ///
 /// The rest of the arguments are either identifiers or 2-element tuples. Identifiers must be an
 /// `Option<T>` and tuples must be `(&str, Option<&T>)`, where `&T` is castable to <code>&dyn
-/// [syn::spanned::Spanned]</code>. Identifiers will automatically [`stringify`] the identifier
+/// [`syn::spanned::Spanned`]</code>. Identifiers will automatically [`stringify`] the identifier
 /// name to use in the error message, and so should used when the field name is the same as the
 /// variable name. The tuple form can be used to specify a different field name from the name of
 /// the variable. The identifier form is intended to make it easier to do validations by
