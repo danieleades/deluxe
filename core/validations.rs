@@ -45,7 +45,7 @@ where
 {
     let iter = attrs.into_iter();
     let mut search = iter.clone().cloned().map(|f| f.1.into());
-    let first_is_some = search.next().map(|f| f.is_some()).unwrap_or(false);
+    let first_is_some = search.next().map_or(false, |f| f.is_some());
     if search.any(|f| f.is_some() != first_is_some) {
         let mut names = String::new();
         for (n, o) in iter.clone().cloned() {

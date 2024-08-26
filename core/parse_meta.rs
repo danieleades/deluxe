@@ -1,4 +1,11 @@
-use crate::{parse_helpers::*, Errors, Result};
+use crate::{
+    parse_helpers::{
+        flag_disallowed_error, inputs_span, key_to_string, missing_field_error, parse_first,
+        parse_named_meta_item, parse_struct, parse_tuple_struct, skip_meta_item, Brace, Bracket,
+        FieldStatus, Paren, ParseDelimited,
+    },
+    Errors, Result,
+};
 use proc_macro2::Span;
 use quote::ToTokens;
 use std::{
@@ -39,7 +46,8 @@ impl ParseMode {
     ///
     /// If `self` is [`Unnamed`](Self::Unnamed), returns [`None`].
     #[inline]
-    pub fn named_span(&self) -> Option<Span> {
+    #[must_use]
+    pub const fn named_span(&self) -> Option<Span> {
         match self {
             Self::Named(s) => Some(*s),
             _ => None,
@@ -483,12 +491,11 @@ impl<T: ParseMetaItem, const N: usize> ParseMetaFlatUnnamed for [T; N] {
         let errors = Errors::new();
         let mut failed = 0;
         errors.push_result(parse_tuple_struct(inputs, N, |stream, _, _| {
-            match errors.push_result(T::parse_meta_item(stream, ParseMode::Unnamed)) {
-                Some(v) => a.push(v),
-                None => {
-                    failed += 1;
-                    skip_meta_item(stream);
-                }
+            if let Some(v) = errors.push_result(T::parse_meta_item(stream, ParseMode::Unnamed)) {
+                a.push(v)
+            } else {
+                failed += 1;
+                skip_meta_item(stream);
             }
             Ok(())
         }));
@@ -1066,11 +1073,11 @@ impl ParseMetaItem for proc_macro2::Group {
     fn parse_meta_item(input: ParseStream, _mode: ParseMode) -> Result<Self> {
         input.step(|cursor| {
             for delim in {
-                use proc_macro2::Delimiter::*;
+                use proc_macro2::Delimiter::{Brace, Bracket, None, Parenthesis};
                 [Parenthesis, Brace, Bracket, None]
             } {
                 if let Some((group, _, cursor)) = cursor.group(delim) {
-                    return Ok((proc_macro2::Group::new(delim, group.token_stream()), cursor));
+                    return Ok((Self::new(delim, group.token_stream()), cursor));
                 }
             }
             Err(crate::Error::new(
@@ -1085,7 +1092,7 @@ impl ParseMetaItem for proc_macro2::Group {
 #[inline]
 fn convert_token_tree(tt: proc_macro2::TokenTree) -> syn::Result<proc_macro::TokenTree> {
     #[inline]
-    fn convert_delimiter(d: proc_macro2::Delimiter) -> proc_macro::Delimiter {
+    const fn convert_delimiter(d: proc_macro2::Delimiter) -> proc_macro::Delimiter {
         match d {
             proc_macro2::Delimiter::Parenthesis => proc_macro::Delimiter::Parenthesis,
             proc_macro2::Delimiter::Brace => proc_macro::Delimiter::Brace,
@@ -1094,7 +1101,7 @@ fn convert_token_tree(tt: proc_macro2::TokenTree) -> syn::Result<proc_macro::Tok
         }
     }
     #[inline]
-    fn convert_spacing(s: proc_macro2::Spacing) -> proc_macro::Spacing {
+    const fn convert_spacing(s: proc_macro2::Spacing) -> proc_macro::Spacing {
         match s {
             proc_macro2::Spacing::Alone => proc_macro::Spacing::Alone,
             proc_macro2::Spacing::Joint => proc_macro::Spacing::Joint,
@@ -1224,7 +1231,7 @@ impl<T: ParseMetaItem, P: Parse + Peek + Default> ParseMetaFlatUnnamed for Punct
         _mode: ParseMode,
         _index: usize,
     ) -> Result<Self> {
-        let mut p = Punctuated::new();
+        let mut p = Self::new();
         let errors = Errors::new();
         for input in inputs {
             let input = input.borrow();
@@ -1384,7 +1391,7 @@ impl_parse_meta_paren_item_syn!(syn::MetaNameValue);
 impl ParseMetaItem for syn::Pat {
     #[inline]
     fn parse_meta_item(input: ParseStream, _mode: ParseMode) -> Result<Self> {
-        syn::Pat::parse_single(input)
+        Self::parse_single(input)
     }
 }
 #[cfg(feature = "full")]

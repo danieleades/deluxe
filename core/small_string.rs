@@ -23,18 +23,18 @@ impl<'a> SmallString<'a> {
     #[inline]
     #[must_use]
     pub fn into_owned(self) -> SmallString<'static> {
-        use SmallStringInner::*;
+        use SmallStringInner::{Borrowed, Heap, Inline};
         SmallString(match self.0 {
             Heap(s) => Heap(s),
             Inline(s) => Inline(s),
-            Borrowed(s) => s.try_into().map(Inline).unwrap_or_else(|_| Heap(s.into())),
+            Borrowed(s) => s.try_into().map_or_else(|_| Heap(s.into()), Inline),
         })
     }
     /// Extracts a string slice containing the entire `SmallString`.
     #[inline]
     #[must_use]
     pub fn as_str(&self) -> &str {
-        use SmallStringInner::*;
+        use SmallStringInner::{Borrowed, Heap, Inline};
         match &self.0 {
             Heap(s) => s.as_str(),
             Inline(s) => s.as_str(),
@@ -48,7 +48,7 @@ impl<'a> SmallString<'a> {
     }
     /// Appends a given string slice onto the end of this `SmallString`.
     pub fn push_str(&mut self, s: &str) {
-        use SmallStringInner::*;
+        use SmallStringInner::{Borrowed, Heap, Inline};
         match &mut self.0 {
             Heap(h) => h.push_str(s),
             Inline(i) => {
@@ -127,7 +127,7 @@ impl<'a> PartialOrd<SmallString<'a>> for str {
 impl<'a> std::hash::Hash for SmallString<'a> {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.as_str().hash(state)
+        self.as_str().hash(state);
     }
 }
 
@@ -139,7 +139,7 @@ impl<'a> Default for SmallString<'a> {
 
 impl<'a> std::fmt::Debug for SmallString<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use SmallStringInner::*;
+        use SmallStringInner::{Borrowed, Heap, Inline};
         match &self.0 {
             Heap(s) => s.fmt(f),
             Inline(s) => s.fmt(f),
@@ -150,7 +150,7 @@ impl<'a> std::fmt::Debug for SmallString<'a> {
 
 impl<'a> std::fmt::Display for SmallString<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use SmallStringInner::*;
+        use SmallStringInner::{Borrowed, Heap, Inline};
         match &self.0 {
             Heap(s) => s.fmt(f),
             Inline(s) => s.fmt(f),
