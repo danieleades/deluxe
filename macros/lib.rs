@@ -338,7 +338,7 @@ pub fn derive_parse_attributes(item: TokenStream) -> TokenStream {
 ///   used for `T` and `U` as long as the following constraints hold:
 ///
 ///   - The first function must have a fully specified type for `T`, which will have its
-///   [`ParseMetaItem`](deluxe_core::ParseMetaItem) implementation used.
+///     [`ParseMetaItem`](deluxe_core::ParseMetaItem) implementation used.
 ///   - The `U from any function in the chain matches the `T` for the following function.
 ///   - The last function must have a type for `U` that matches the type of the field.
 ///

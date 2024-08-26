@@ -507,8 +507,7 @@ impl<'f> Field<'f> {
             .enumerate()
             .map(|(i, _)| quote::format_ident!("field{i}", span = Span::mixed_site()))
             .collect::<Vec<_>>();
-        let container_def = fields.iter().enumerate().filter_map(|(i, f)| {
-            (f.is_container() && *mode != TokenMode::ParseMetaItem).then(|| {
+        let container_def = fields.iter().enumerate().filter(|&(i, f)| (f.is_container() && *mode != TokenMode::ParseMetaItem)).map(|(i, f)| {
                 let name = names[i].clone();
                 let func = match mode {
                     TokenMode::ParseAttributes => quote! { container_from },
@@ -518,8 +517,7 @@ impl<'f> Field<'f> {
                 quote_mixed! {
                     #name = #priv_::FieldStatus::Some(#crate_::ContainerFrom::#func(obj));
                 }
-            })
-        });
+            });
         let field_errors = {
             let mut cur_index = 0usize;
             let mut extra_counts = quote! {};
@@ -685,14 +683,12 @@ impl<'f> Field<'f> {
                 #(#transforms)*
             }
         });
-        let field_unwraps = fields.iter().enumerate().filter_map(|(i, _)| {
-            (!matches!(target, ParseTarget::Var(_))).then(|| {
+        let field_unwraps = fields.iter().enumerate().filter(|&(i, _)| (!matches!(target, ParseTarget::Var(_)))).map(|(i, _)| {
                 let name = &names[i];
                 quote_mixed! {
                     let #name = #name.unwrap_or_else(|| #priv_::unreachable!());
                 }
-            })
-        });
+            });
 
         let option_inits = fields.iter().enumerate().map(|(i, f)| {
             let name = &names[i];
