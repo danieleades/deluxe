@@ -21,7 +21,6 @@ struct SingleAttributeNamed {
 struct MultiAttributes(char);
 
 #[test]
-#[ignore]
 fn multi_attributes() {
     use ::deluxe::HasAttributes;
 
