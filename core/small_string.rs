@@ -16,7 +16,7 @@ impl<'a> SmallString<'a> {
     /// Does not allocate.
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self(SmallStringInner::Borrowed(""))
     }
     /// Converts this `SmallString` to `SmallString<'static>`.
