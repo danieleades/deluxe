@@ -224,10 +224,7 @@ impl<T> From<FieldStatus<T>> for Option<T> {
 impl<T> From<Option<T>> for FieldStatus<T> {
     #[inline]
     fn from(value: Option<T>) -> Self {
-        match value {
-            Some(v) => Self::Some(v),
-            None => Self::None,
-        }
+        value.map_or_else(|| Self::None, Self::Some)
     }
 }
 
@@ -863,7 +860,7 @@ pub fn disallow_paths(
 pub fn inputs_span<'s, S: Borrow<ParseBuffer<'s>>>(inputs: &[S]) -> Span {
     let mut iter = inputs.iter();
     let first = iter.next();
-    if let Some(input) = first {
+    first.map_or_else(Span::call_site, |input| {
         let mut span = input.borrow().span();
         for next in iter {
             if let Some(joined) = span.join(next.borrow().span()) {
@@ -871,9 +868,7 @@ pub fn inputs_span<'s, S: Borrow<ParseBuffer<'s>>>(inputs: &[S]) -> Span {
             }
         }
         span
-    } else {
-        Span::call_site()
-    }
+    })
 }
 
 /// Returns an error with a "missing required field" message.

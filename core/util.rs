@@ -114,11 +114,7 @@ impl Errors {
     /// combined using [`Error::combine`](syn::Error::combine).
     #[inline]
     pub fn into_result<T>(self, value: T) -> Result<T> {
-        if let Some(err) = self.errors.take() {
-            Err(err)
-        } else {
-            Ok(value)
-        }
+        self.errors.take().map_or_else(|| Ok(value), |err| Err(err))
     }
     /// Checks if the error list is empty.
     ///
