@@ -11,6 +11,7 @@ readme = "README.md"
 keywords = ["macros", "derive", "attributes"]
 include = ["/src", "/tests", "/README.md", "/COPYING"]
 resolver = "2"
+rust-version.workspace = true
 
 [features]
 default = ["full", "proc-macro"]
@@ -30,3 +31,6 @@ deluxe-core = { path = "./core", version = "0.5.0", features = ["full"], default
 
 [workspace]
 members = ["core", "macros"]
+
+[workspace.package]
+rust-version = "1.67.1"
