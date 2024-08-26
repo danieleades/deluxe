@@ -34,3 +34,12 @@ deluxe-macros = { path = "./macros", version = "0.5.0" }
 [dev-dependencies]
 quote = "1.0.25"
 deluxe-core = { path = "./core", version = "0.5.0", features = ["full"], default-features = false }
+<<<<<<< HEAD
+=======
+
+[workspace]
+members = ["core", "macros"]
+
+[workspace.package]
+rust-version = "1.67.1"
+>>>>>>> cb750fb (fixup)
