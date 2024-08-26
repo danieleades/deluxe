@@ -47,7 +47,7 @@ jobs:
       - uses: taiki-e/install-action@cargo-no-dev-deps
       - name: Get MSRV from Cargo.toml
         run: |
-          MSRV=$(grep -P '^rust-version\s*=\s*"[^"]+"' cargo.toml | sed -E 's/^rust-version\s*=\s*"(.+)"/\1/')
+          MSRV=$(sed -n 's/^rust-version\s*=\s*//p' Cargo.toml)
           echo "MSRV=$MSRV" >> $GITHUB_ENV
       - uses: dtolnay/rust-toolchain@master
         with:
