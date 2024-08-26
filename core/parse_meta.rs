@@ -6,7 +6,7 @@ use crate::{
     },
     Errors, Result,
 };
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use std::{
     borrow::Borrow,
@@ -39,7 +39,7 @@ impl ParseMode {
     pub fn to_named(&self, input: ParseStream) -> Self {
         match self {
             Self::Unnamed => Self::Named(input.span()),
-            m => *m,
+            m @ Self::Named(_) => *m,
         }
     }
     /// Gets the stored [`Span`](proc_macro2::Span).
@@ -50,7 +50,7 @@ impl ParseMode {
     pub const fn named_span(&self) -> Option<Span> {
         match self {
             Self::Named(s) => Some(*s),
-            _ => None,
+            Self::Unnamed => None,
         }
     }
     /// Gets the stored [`Span`](proc_macro2::Span).
@@ -112,9 +112,9 @@ pub trait ParseMetaItem: Sized {
     #[inline]
     fn parse_meta_item_inline<'s, S: Borrow<ParseBuffer<'s>>>(
         inputs: &[S],
-        _mode: ParseMode,
+        mode: ParseMode,
     ) -> Result<Self> {
-        parse_first(inputs, _mode, Self::parse_meta_item)
+        parse_first(inputs, mode, Self::parse_meta_item)
     }
     /// Parses an empty flag value.
     ///
@@ -123,8 +123,8 @@ pub trait ParseMetaItem: Sized {
     ///
     /// The default implementation returns an error.
     #[inline]
-    fn parse_meta_item_flag(_span: Span) -> Result<Self> {
-        Err(flag_disallowed_error(_span))
+    fn parse_meta_item_flag(span: Span) -> Result<Self> {
+        Err(flag_disallowed_error(span))
     }
     /// Parses the item following a name.
     ///
@@ -471,9 +471,9 @@ impl<T: ParseMetaItem, const N: usize> ParseMetaItem for [T; N] {
     #[inline]
     fn parse_meta_item_inline<'s, S: Borrow<ParseBuffer<'s>>>(
         inputs: &[S],
-        _mode: ParseMode,
+        mode: ParseMode,
     ) -> Result<Self> {
-        Self::parse_meta_flat_unnamed(inputs, _mode, 0)
+        Self::parse_meta_flat_unnamed(inputs, mode, 0)
     }
 }
 
@@ -492,7 +492,7 @@ impl<T: ParseMetaItem, const N: usize> ParseMetaFlatUnnamed for [T; N] {
         let mut failed = 0;
         errors.push_result(parse_tuple_struct(inputs, N, |stream, _, _| {
             if let Some(v) = errors.push_result(T::parse_meta_item(stream, ParseMode::Unnamed)) {
-                a.push(v)
+                a.push(v);
             } else {
                 failed += 1;
                 skip_meta_item(stream);
@@ -975,8 +975,7 @@ macro_rules! impl_fmt_key_string_display {
     ($ty:ty, #proc_macro) => {
         impl_fmt_key_string_display!(
             #[cfg(feature = "proc-macro")]
-            #[cfg_attr(doc_cfg, doc(cfg(feature = "proc-macro")))]
-            $ty
+                        $ty
         );
     };
 }
@@ -1009,11 +1008,11 @@ impl ParseMetaItem for proc_macro2::TokenStream {
     }
     #[inline]
     fn parse_meta_item_flag(_: Span) -> Result<Self> {
-        Ok(Default::default())
+        Ok(Self::default())
     }
     #[inline]
     fn missing_meta_item(_name: &str, _span: Span) -> Result<Self> {
-        Ok(Default::default())
+        Ok(Self::default())
     }
 }
 
@@ -1130,7 +1129,6 @@ fn convert_token_tree(tt: proc_macro2::TokenTree) -> syn::Result<proc_macro::Tok
 }
 
 #[cfg(feature = "proc-macro")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "proc-macro")))]
 impl ParseMetaItem for proc_macro::TokenTree {
     #[inline]
     fn parse_meta_item(input: ParseStream, _mode: ParseMode) -> Result<Self> {
@@ -1141,7 +1139,6 @@ impl ParseMetaItem for proc_macro::TokenTree {
 impl_fmt_key_string_display!(proc_macro::TokenTree, #proc_macro);
 
 #[cfg(feature = "proc-macro")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "proc-macro")))]
 impl ParseMetaItem for proc_macro::TokenStream {
     #[inline]
     fn parse_meta_item(input: ParseStream, _mode: ParseMode) -> Result<Self> {
@@ -1152,7 +1149,6 @@ impl ParseMetaItem for proc_macro::TokenStream {
 impl_fmt_key_string_display!(proc_macro::TokenStream, #proc_macro);
 
 #[cfg(feature = "proc-macro")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "proc-macro")))]
 impl ParseMetaItem for proc_macro::Literal {
     #[inline]
     fn parse_meta_item(input: ParseStream, _mode: ParseMode) -> Result<Self> {
@@ -1166,7 +1162,6 @@ impl ParseMetaItem for proc_macro::Literal {
 impl_fmt_key_string_display!(proc_macro::Literal, #proc_macro);
 
 #[cfg(feature = "proc-macro")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "proc-macro")))]
 impl ParseMetaItem for proc_macro::Punct {
     #[inline]
     fn parse_meta_item(input: ParseStream, _mode: ParseMode) -> Result<Self> {
@@ -1180,7 +1175,6 @@ impl ParseMetaItem for proc_macro::Punct {
 impl_fmt_key_string_display!(proc_macro::Punct, #proc_macro);
 
 #[cfg(feature = "proc-macro")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "proc-macro")))]
 impl ParseMetaItem for proc_macro::Group {
     #[inline]
     fn parse_meta_item(input: ParseStream, _mode: ParseMode) -> Result<Self> {
@@ -1194,7 +1188,6 @@ impl ParseMetaItem for proc_macro::Group {
 impl_fmt_key_string_display!(proc_macro::Group, #proc_macro);
 
 #[cfg(feature = "proc-macro")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "proc-macro")))]
 impl ParseMetaItem for proc_macro::Ident {
     #[inline]
     fn parse_meta_item(input: ParseStream, _mode: ParseMode) -> Result<Self> {
@@ -1215,9 +1208,9 @@ impl<T: ParseMetaItem, P: Parse + Peek + Default> ParseMetaItem for Punctuated<T
     #[inline]
     fn parse_meta_item_inline<'s, S: Borrow<ParseBuffer<'s>>>(
         inputs: &[S],
-        _mode: ParseMode,
+        mode: ParseMode,
     ) -> Result<Self> {
-        Self::parse_meta_flat_unnamed(inputs, _mode, 0)
+        Self::parse_meta_flat_unnamed(inputs, mode, 0)
     }
 }
 
@@ -1301,7 +1294,6 @@ macro_rules! impl_parse_meta_item_syn {
     ($ty:ty, #full) => {
         impl_parse_meta_item_syn!(
             #[cfg(feature = "full")]
-            #[cfg_attr(doc_cfg, doc(cfg(feature = "full")))]
             $ty
         );
     };
@@ -1335,7 +1327,6 @@ macro_rules! impl_parse_meta_paren_item_syn {
     ($ty:ty, #full) => {
         impl_parse_meta_paren_item_syn!(
             #[cfg(feature = "full")]
-            #[cfg_attr(doc_cfg, doc(cfg(feature = "full")))]
             $ty
         );
     };
@@ -1387,7 +1378,6 @@ impl_parse_meta_item_syn!(syn::MetaList);
 impl_parse_meta_paren_item_syn!(syn::Meta);
 impl_parse_meta_paren_item_syn!(syn::MetaNameValue);
 #[cfg(feature = "full")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "full")))]
 impl ParseMetaItem for syn::Pat {
     #[inline]
     fn parse_meta_item(input: ParseStream, _mode: ParseMode) -> Result<Self> {
@@ -1395,7 +1385,6 @@ impl ParseMetaItem for syn::Pat {
     }
 }
 #[cfg(feature = "full")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "full")))]
 impl ToKeyString for syn::Pat {
     #[inline]
     fn fmt_key_string(&self, f: &mut fmt::Formatter) -> fmt::Result {

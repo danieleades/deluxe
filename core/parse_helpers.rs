@@ -191,7 +191,7 @@ impl<T> FieldStatus<T> {
         F: FnOnce(ParseStream, ParseMode) -> Result<T>,
     {
         if let Some(v) = errors.push_result(func(input, ParseMode::Unnamed)) {
-            *self = Self::Some(v)
+            *self = Self::Some(v);
         } else {
             *self = Self::ParseError;
             skip_meta_item(input);
@@ -373,7 +373,7 @@ where
     } else {
         let span = match mode {
             ParseMode::Named(span) => span,
-            _ => Span::call_site(),
+            ParseMode::Unnamed => Span::call_site(),
         };
         parse_empty(span, |input| func(input, mode))
     }
@@ -948,7 +948,7 @@ where
         .filter(|&a| P::path_matches(a.path()))
         .map(|a| {
             let value = match &a.meta {
-                syn::Meta::Path(_) => Default::default(),
+                syn::Meta::Path(_) => TokenStream::default(),
                 syn::Meta::List(list) => proc_macro2::TokenTree::Group(proc_macro2::Group::new(
                     match list.delimiter {
                         syn::MacroDelimiter::Paren(_) => proc_macro2::Delimiter::Parenthesis,
@@ -986,7 +986,7 @@ where
             let span = attr.path().span();
             let key = key_to_string(attr.path());
             let value = match attr.meta {
-                syn::Meta::Path(_) => Default::default(),
+                syn::Meta::Path(_) => TokenStream::default(),
                 syn::Meta::List(list) => proc_macro2::TokenTree::Group(proc_macro2::Group::new(
                     match list.delimiter {
                         syn::MacroDelimiter::Paren(_) => proc_macro2::Delimiter::Parenthesis,

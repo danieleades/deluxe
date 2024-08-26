@@ -105,7 +105,6 @@ macro_rules! impl_has_attributes {
     ($ty:ty, #full) => {
         impl_has_attributes!(
             #[cfg(feature = "full")]
-            #[cfg_attr(doc_cfg, doc(cfg(feature = "full")))]
             $ty
         );
     };
@@ -117,7 +116,6 @@ impl_has_attributes!(syn::ConstParam);
 impl_has_attributes!(syn::DeriveInput);
 
 #[cfg(feature = "full")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "full")))]
 impl HasAttributes for syn::Expr {
     fn attrs(&self) -> &[syn::Attribute] {
         match self {
@@ -258,7 +256,6 @@ impl_has_attributes!(syn::FieldValue, #full);
 impl_has_attributes!(syn::File, #full);
 
 #[cfg(feature = "full")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "full")))]
 impl HasAttributes for syn::ForeignItem {
     fn attrs(&self) -> &[syn::Attribute] {
         match self {
@@ -293,7 +290,6 @@ impl_has_attributes!(syn::ForeignItemStatic, #full);
 impl_has_attributes!(syn::ForeignItemType, #full);
 
 #[cfg(feature = "full")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "full")))]
 impl HasAttributes for syn::ImplItem {
     fn attrs(&self) -> &[syn::Attribute] {
         match self {
@@ -328,7 +324,6 @@ impl_has_attributes!(syn::ImplItemMacro, #full);
 impl_has_attributes!(syn::ImplItemType, #full);
 
 #[cfg(feature = "full")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "full")))]
 impl HasAttributes for syn::Item {
     fn attrs(&self) -> &[syn::Attribute] {
         match self {
@@ -398,7 +393,6 @@ impl_has_attributes!(syn::LifetimeParam);
 impl_has_attributes!(syn::Local, #full);
 
 #[cfg(feature = "full")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "full")))]
 impl HasAttributes for syn::Pat {
     fn attrs(&self) -> &[syn::Attribute] {
         match self {
@@ -465,7 +459,6 @@ impl_has_attributes!(syn::PatWild, #full);
 impl_has_attributes!(syn::Receiver, #full);
 
 #[cfg(feature = "full")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "full")))]
 impl HasAttributes for syn::TraitItem {
     fn attrs(&self) -> &[syn::Attribute] {
         match self {

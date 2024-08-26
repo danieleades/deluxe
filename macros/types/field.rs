@@ -510,8 +510,8 @@ impl<'f> Field<'f> {
         let container_def = fields
             .iter()
             .enumerate()
-            .filter(|&(i, f)| (f.is_container() && *mode != TokenMode::ParseMetaItem))
-            .map(|(i, f)| {
+            .filter(|&(_i, f)| (f.is_container() && *mode != TokenMode::ParseMetaItem))
+            .map(|(i, _f)| {
                 let name = names[i].clone();
                 let func = match mode {
                     TokenMode::ParseAttributes => quote! { container_from },

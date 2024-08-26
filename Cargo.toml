@@ -5,7 +5,6 @@ members = ["core", "macros"]
 rust-version = "1.69.0"
 
 [workspace.lints.clippy]
-all = "deny"
 pedantic = "warn"
 nursery = "warn"
 
@@ -39,6 +38,3 @@ deluxe-macros = { path = "./macros", version = "0.5.0" }
 [dev-dependencies]
 quote = "1.0.25"
 deluxe-core = { path = "./core", version = "0.5.0", features = ["full"], default-features = false }
-
-[lints]
-workspace = true
