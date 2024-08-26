@@ -31,7 +31,7 @@ jobs:
         with:
           toolchain: nightly-2024-08-25
           components: clippy
-      - run: cargo clippy --workspace --all-targets --output=json
+      - run: cargo clippy --workspace --all-targets --message-format=json
 
   docs:
     runs-on: ubuntu-latest
