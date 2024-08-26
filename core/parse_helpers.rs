@@ -939,7 +939,10 @@ where
     P: crate::ParseAttributes<'t, T>,
     T: crate::HasAttributes,
 {
-    T::attrs(input).iter().filter(|&a| P::path_matches(a.path())).map(|a| {
+    T::attrs(input)
+        .iter()
+        .filter(|&a| P::path_matches(a.path()))
+        .map(|a| {
             let value = match &a.meta {
                 syn::Meta::Path(_) => Default::default(),
                 syn::Meta::List(list) => proc_macro2::TokenTree::Group(proc_macro2::Group::new(
