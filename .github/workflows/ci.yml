@@ -7,7 +7,6 @@ on:
 
 jobs:
   test:
-    name: Deluxe
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -18,18 +17,14 @@ jobs:
       - run: cargo test --workspace ${{ matrix.features }}
 
   formatting:
-    name: Deluxe Rustfmt
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo fmt --all --check
 
   clippy:
-    name: Clippy
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -52,7 +47,7 @@ jobs:
       - uses: taiki-e/install-action@cargo-no-dev-deps
       - name: Get MSRV from Cargo.toml
         run: |
-          MSRV=$(grep 'rust-version' Cargo.toml | sed 's/.*= *"\(.*\)".*/\1/')
+          MSRV=$(grep -P '^rust-version\s*=\s*"[^"]+"' cargo.toml | sed -E 's/^rust-version\s*=\s*"(.+)"/\1/')
           echo "MSRV=$MSRV" >> $GITHUB_ENV
       - uses: dtolnay/rust-toolchain@master
         with:
