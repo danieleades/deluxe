@@ -536,7 +536,7 @@ impl<'v> ParseAttributes<'v, syn::Variant> for Variant<'v> {
                                                 span,
                                                 "`transparent` variant field cannot be `flat`",
                                             ));
-                                        } else if first.append.map(|v| *v).unwrap_or(false) {
+                                        } else if first.append.is_some_and(|v| *v) {
                                             return Err(syn::Error::new(
                                                 span,
                                                 "`transparent` variant field cannot be `append`",
@@ -657,7 +657,7 @@ impl<'v> ParseAttributes<'v, syn::Variant> for Variant<'v> {
                 for field in &fields {
                     if let Some(c) = field.container.as_ref() {
                         if container.is_some() {
-                            errors.push(c.span(), "Duplicate `container` field")
+                            errors.push(c.span(), "Duplicate `container` field");
                         } else {
                             container = Some(c);
                         }

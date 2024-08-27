@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use deluxe_core::Errors;
 use proc_macro2::{Span, TokenStream};
 
-use crate::types::*;
+use crate::types::{Enum, ItemDef, Struct, TokenMode};
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Mode {
@@ -12,7 +12,7 @@ pub enum Mode {
 }
 
 impl Mode {
-    fn into_token_mode(self) -> TokenMode {
+    const fn into_token_mode(self) -> TokenMode {
         match self {
             Self::Parse => TokenMode::ParseAttributes,
             Self::Extract => TokenMode::ExtractAttributes,
@@ -58,10 +58,10 @@ fn impl_for_struct<'i>(
             );
             let pre = match &struct_.fields {
                 syn::Fields::Named(_) => {
-                    let field_names = struct_attr
-                        .as_ref()
-                        .map(|s| s.to_field_names_tokens(crate_, priv_))
-                        .unwrap_or_else(|| quote_mixed! { &[] });
+                    let field_names = struct_attr.as_ref().map_or_else(
+                        || quote_mixed! { &[] },
+                        |s| s.to_field_names_tokens(crate_, priv_),
+                    );
                     let accepts_all = struct_attr
                         .as_ref()
                         .and_then(|s| s.to_accepts_all_tokens(crate_))
@@ -77,7 +77,7 @@ fn impl_for_struct<'i>(
                         let mut index = 0usize;
                     }
                 }
-                _ => quote::quote! {},
+                syn::Fields::Unit => quote::quote! {},
             };
             quote_mixed! {
                 #pre
@@ -183,7 +183,7 @@ pub fn impl_parse_attributes(input: syn::DeriveInput, errors: &Errors, mode: Mod
                     Mode::Extract => "union not supported with derive(ExtractAttributes)",
                 },
             );
-            return Default::default();
+            return TokenStream::default();
         }
     };
     let AttrImpl {

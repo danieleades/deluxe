@@ -317,7 +317,8 @@ impl<T: Hash> Hash for SpannedValue<T> {
 impl<T> quote::ToTokens for SpannedValue<T> {
     #[inline]
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let mut group = proc_macro2::Group::new(proc_macro2::Delimiter::None, Default::default());
+        let mut group =
+            proc_macro2::Group::new(proc_macro2::Delimiter::None, TokenStream::default());
         group.set_span(self.span);
         tokens.append(group);
     }

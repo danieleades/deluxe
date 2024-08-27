@@ -2110,6 +2110,7 @@ struct NoDebug {
     _c: NoDebugInner,
 }
 
+#[allow(dead_code)]
 #[derive(::deluxe::ParseAttributes, ::deluxe::ExtractAttributes, ::deluxe::ParseMetaItem)]
 enum NoDebugEnum {
     _A(NoDebug),

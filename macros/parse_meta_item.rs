@@ -3,7 +3,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
-use crate::types::*;
+use crate::types::{Enum, Field, FieldDefault, ItemDef, Struct, TokenMode};
 
 struct MetaDef {
     pub parse: TokenStream,
@@ -32,8 +32,7 @@ fn impl_for_struct(
 
     let any_flat = struct_attr
         .as_ref()
-        .map(|s| s.fields.iter().any(|f| f.is_flat()))
-        .unwrap_or(false);
+        .is_some_and(|s| s.fields.iter().any(Field::is_flat));
     let (parse, parse_flat, inline, flag, field_names, mut extra) = struct_attr
         .as_mut()
         .map(|struct_attr| {

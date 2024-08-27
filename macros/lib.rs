@@ -11,7 +11,7 @@ mod util;
 mod parse_attributes;
 mod parse_meta_item;
 mod types;
-use util::*;
+use util::get_crate_path;
 
 use deluxe_core::Errors;
 use proc_macro::TokenStream;
@@ -339,7 +339,7 @@ pub fn derive_parse_attributes(item: TokenStream) -> TokenStream {
 ///
 ///   - The first function must have a fully specified type for `T`, which will have its
 ///     [`ParseMetaItem`](deluxe_core::ParseMetaItem) implementation used.
-///   - The `U from any function in the chain matches the `T` for the following function.
+///   - The `U` from any function in the chain matches the `T` for the following function.
 ///   - The last function must have a type for `U` that matches the type of the field.
 ///
 ///   ##### Example

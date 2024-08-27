@@ -690,7 +690,7 @@ impl<'f> Field<'f> {
         let field_unwraps = fields
             .iter()
             .enumerate()
-            .filter(|&(i, _)| (!matches!(target, ParseTarget::Var(_))))
+            .filter(|&(_i, _)| (!matches!(target, ParseTarget::Var(_))))
             .map(|(i, _)| {
                 let name = &names[i];
                 quote_mixed! {
