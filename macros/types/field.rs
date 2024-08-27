@@ -19,11 +19,10 @@ impl FieldDefault {
     pub fn to_expr(&self, ty: Option<&syn::Type>, priv_: &syn::Path) -> Cow<TokenStream> {
         match self {
             Self::Default(span) => {
-                let ty = if let Some(ty) = ty {
-                    quote_spanned! { ty.span() => #ty }
-                } else {
-                    quote_spanned! { *span => _ }
-                };
+                let ty = ty.map_or_else(
+                    || quote_spanned! { *span => _ },
+                    |ty| quote_spanned! { ty.span() => #ty },
+                );
                 Cow::Owned(quote_spanned! { *span =>
                     <#ty as #priv_::Default>::default()
                 })
@@ -93,18 +92,17 @@ impl ParseMetaItem for FieldFlatten {
         let span = mode.to_full_span(inputs);
         let mut prefix = FieldStatus::None;
         errors.push_result(parse_helpers::parse_struct(inputs, |input, path, span| {
-            match path {
-                "prefix" => prefix.parse_named_item_with(
+            if path == "prefix" {
+                prefix.parse_named_item_with(
                     "prefix",
                     input,
                     span,
                     &errors,
                     deluxe_core::with::any_path::parse_meta_item_named,
-                ),
-                _ => {
-                    errors.push_syn(parse_helpers::unknown_error(path, span, &["prefix"]));
-                    parse_helpers::skip_meta_item(input);
-                }
+                )
+            } else {
+                errors.push_syn(parse_helpers::unknown_error(path, span, &["prefix"]));
+                parse_helpers::skip_meta_item(input);
             }
             Ok(())
         }));
@@ -250,17 +248,17 @@ pub(super) struct FieldData<'t, 'i, 'a> {
 impl<'f> Field<'f> {
     #[inline]
     pub fn is_flat(&self) -> bool {
-        self.flatten.as_ref().map(|f| f.value).unwrap_or(false)
-            || self.append.map(|v| *v).unwrap_or(false)
-            || self.rest.map(|v| *v).unwrap_or(false)
+        self.flatten.as_ref().map_or(false, |f| f.value)
+            || self.append.map_or(false, |v| *v)
+            || self.rest.map_or(false, |v| *v)
     }
     #[inline]
     pub fn is_container(&self) -> bool {
-        self.container.as_ref().map(|f| f.value).unwrap_or(false)
+        self.container.as_ref().map_or(false, |f| f.value)
     }
     #[inline]
     pub fn is_parsable(&self) -> bool {
-        !self.is_container() && !self.skip.map(|v| *v).unwrap_or(false)
+        !self.is_container() && !self.skip.map_or(false, |v| *v)
     }
     #[inline]
     pub fn constraint_ty(&self) -> TokenStream {
@@ -415,14 +413,15 @@ impl<'f> Field<'f> {
         }) = self.flatten.as_ref()
         {
             if self.field.ident.is_some() {
-                let prefix = if let Some(prefix) = prefix {
-                    let prefix = parse_helpers::key_to_string(prefix);
-                    quote_mixed! {
-                        &#priv_::parse_helpers::join_prefix(prefix, #prefix)
-                    }
-                } else {
-                    quote_mixed! { "" }
-                };
+                let prefix = prefix.as_ref().map_or_else(
+                    || quote_mixed! { "" },
+                    |prefix| {
+                        let prefix = parse_helpers::key_to_string(prefix);
+                        quote_mixed! {
+                            &#priv_::parse_helpers::join_prefix(prefix, #prefix)
+                        }
+                    },
+                );
                 let path = self.parse_path(crate_, "ParseMetaFlatNamed");
                 quote_mixed! {
                     #path::parse_meta_flat_named(
