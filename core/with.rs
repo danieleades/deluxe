@@ -578,7 +578,7 @@ macro_rules! define_with_collection {
     };
 }
 
-/// Generates a module for parsing a map collection using `#[deluxe(with = ...)].
+/// Generates a module for parsing a map collection using `#[deluxe(with = ...)]`.
 ///
 /// Takes four arguments separated by commas:
 /// - The generated module. Can include attributes and a visibility specifier.

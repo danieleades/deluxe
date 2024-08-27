@@ -84,6 +84,7 @@ impl<T> FieldStatus<T> {
     }
     /// Returns the status if it contains a value, or if it is `None` then returns `b`.
     #[inline]
+    #[must_use]
     pub fn or(self, b: Self) -> Self {
         match self {
             Self::Some(x) => Self::Some(x),
@@ -94,6 +95,7 @@ impl<T> FieldStatus<T> {
     /// Returns the status if it contains a value, or if it is `None` then calls `f` and returns
     /// the result.
     #[inline]
+    #[must_use]
     pub fn or_else<F: FnOnce() -> Self>(self, f: F) -> Self {
         match self {
             Self::Some(x) => Self::Some(x),

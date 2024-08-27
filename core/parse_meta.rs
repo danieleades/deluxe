@@ -36,6 +36,7 @@ impl ParseMode {
     ///
     /// If `self` is [`Unnamed`](Self::Unnamed), uses the [`Span`](proc_macro2::Span) from `input`.
     #[inline]
+    #[must_use]
     pub fn to_named(&self, input: ParseStream) -> Self {
         match self {
             Self::Unnamed => Self::Named(input.span()),
