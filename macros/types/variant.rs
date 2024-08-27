@@ -471,12 +471,13 @@ impl<'v> Variant<'v> {
         }
         self.fields
             .iter()
-            .map(|field| match &field.flatten {
-                Some(FieldFlatten {
+            .map(|field| {
+                if let Some(FieldFlatten {
                     value: true,
                     prefix,
                     ..
-                }) => {
+                }) = &field.flatten
+                {
                     let ty = &field.field.ty;
                     let names = quote_spanned! { ty.span() =>
                         <#ty as #crate_::ParseMetaFlatNamed>::field_names()
@@ -486,8 +487,7 @@ impl<'v> Variant<'v> {
                         .map(parse_helpers::key_to_string)
                         .unwrap_or_default();
                     quote_mixed! { (#prefix, #names) }
-                }
-                _ => {
+                } else {
                     let idents = field.idents.iter().map(|i| i.to_string());
                     quote_mixed! { ("", &[#(#idents),*]) }
                 }
@@ -530,13 +530,12 @@ impl<'v> ParseAttributes<'v, syn::Variant> for Variant<'v> {
                                 |input, _, span| {
                                     let mut iter = fields.iter().filter(|f| f.is_parsable());
                                     if let Some(first) = iter.next() {
-                                        if first.flatten.as_ref().map(|f| f.value).unwrap_or(false)
-                                        {
+                                        if first.flatten.as_ref().map_or(false, |f| f.value) {
                                             return Err(syn::Error::new(
                                                 span,
                                                 "`transparent` variant field cannot be `flat`",
                                             ));
-                                        } else if first.append.map(|v| *v).unwrap_or(false) {
+                                        } else if first.append.map_or(false, |v| *v) {
                                             return Err(syn::Error::new(
                                                 span,
                                                 "`transparent` variant field cannot be `append`",
