@@ -324,8 +324,8 @@ fn impl_for_enum(input: &syn::DeriveInput, errors: &Errors) -> Option<MetaDef> {
 
 pub fn impl_parse_meta_item(input: &syn::DeriveInput, errors: &Errors) -> TokenStream {
     let meta = match &input.data {
-        syn::Data::Struct(struct_) => impl_for_struct(&input, struct_, errors),
-        syn::Data::Enum(_) => impl_for_enum(&input, errors),
+        syn::Data::Struct(struct_) => impl_for_struct(input, struct_, errors),
+        syn::Data::Enum(_) => impl_for_enum(input, errors),
         syn::Data::Union(union) => {
             errors.push_spanned(
                 union.union_token,
