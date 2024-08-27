@@ -516,7 +516,7 @@ impl<'f> Field<'f> {
                 let func = match mode {
                     TokenMode::ParseAttributes => quote! { container_from },
                     TokenMode::ExtractAttributes => quote! { container_from_mut },
-                    _ => unreachable!(),
+                    TokenMode::ParseMetaItem => unreachable!(),
                 };
                 quote_mixed! {
                     #name = #priv_::FieldStatus::Some(#crate_::ContainerFrom::#func(obj));
@@ -642,7 +642,7 @@ impl<'f> Field<'f> {
                         });
                     if is_unnamed {
                         let ty = f.constraint_ty();
-                        if f.flatten.as_ref().map(|f| f.value).unwrap_or(false) {
+                        if f.flatten.as_ref().map_or(false, |f| f.value) {
                             extra_counts.extend(quote_spanned! { ty.span() =>
                                 + <#ty as #crate_::ParseMetaFlatUnnamed>::field_count().unwrap_or(0)
                             });
@@ -658,9 +658,10 @@ impl<'f> Field<'f> {
             let name = &names[i];
             let ty = &f.field.ty;
             let transforms = f.transforms.iter().enumerate().map(|(ti, t)| {
-                let constraint = match ti + 1 == f.transforms.len() {
-                    true => quote_spanned! { ty.span() => #ty },
-                    false => quote_spanned! { ty.span() => _ },
+                let constraint = if ti + 1 == f.transforms.len() {
+                    quote_spanned! { ty.span() => #ty }
+                } else {
+                    quote_spanned! { ty.span() => _ }
                 };
                 match t {
                     Transform::Map(expr) => quote_mixed! {
@@ -828,7 +829,7 @@ impl<'f> Field<'f> {
             syn::Fields::Unit => {
                 let variant = match target {
                     ParseTarget::Init(variant) => *variant,
-                    _ => None,
+                    ParseTarget::Var(_) => None,
                 }
                 .into_iter();
                 let pre = quote_mixed! {};
@@ -857,7 +858,7 @@ impl<'f> Field<'f> {
         let priv_path: syn::Path = syn::parse_quote! { #crate_::____private };
         let priv_ = &priv_path;
         let pub_fields = fields.iter().filter(|f| f.is_parsable());
-        let any_flat = pub_fields.clone().any(|f| f.is_flat());
+        let any_flat = pub_fields.clone().any(Field::is_flat);
         let names = fields
             .iter()
             .enumerate()
@@ -937,21 +938,22 @@ impl<'f> Field<'f> {
             }
             syn::Fields::Unnamed(_) => {
                 let field_matches = fields.iter().enumerate().filter(|(_, f)| {
-                    f.is_parsable() && !f.append.map(|v| *v).unwrap_or(false) && !f.rest.map(|v| *v).unwrap_or(false)
+                    f.is_parsable() && !f.append.map_or(false, |v| *v) && !f.rest.map_or(false, |v| *v)
                 }).enumerate().map(|(index, (real_index, f))| {
                     let name = &names[real_index];
                     let call = f.to_parse_call_tokens(&inputs_expr, allowed_expr, crate_, priv_);
                     let increment = any_flat.then(|| {
                         let ty = f.constraint_ty();
-                        match f.is_flat() {
-                            true => quote_mixed! {
-                                if let #priv_::Option::Some(count) = <#ty as #crate_::ParseMetaFlatUnnamed>::field_count() {
-                                    index += count;
-                                }
-                            },
-                            false => quote_mixed! {
-                                index += 1;
+                        if f.is_flat() {
+                            quote_mixed! {
+                            if let #priv_::Option::Some(count) = <#ty as #crate_::ParseMetaFlatUnnamed>::field_count() {
+                                index += count;
                             }
+                        }
+                        } else {
+                            quote_mixed! {
+                                                        index += 1;
+                                                    }
                         }
                     });
                     quote_mixed! {
@@ -1081,19 +1083,19 @@ impl<'f> ParseAttributes<'f, syn::Field> for Field<'f> {
                     match path {
                         "flatten" => flatten.parse_named_item("flatten", input, span, &errors),
                         "append" => {
-                            if !named {
+                            if named {
+                                append.parse_named_item("append", input, span, &errors);
+                            } else {
                                 errors.push(span, "`append` not allowed on tuple struct field");
                                 parse_helpers::skip_meta_item(input);
-                            } else {
-                                append.parse_named_item("append", input, span, &errors);
                             }
                         }
                         "rest" => {
-                            if !named {
+                            if named {
+                                rest.parse_named_item("rest", input, span, &errors);
+                            } else {
                                 errors.push(span, "`rest` not allowed on tuple struct field");
                                 parse_helpers::skip_meta_item(input);
-                            } else {
-                                rest.parse_named_item("rest", input, span, &errors);
                             }
                         }
                         "default" => default.parse_named_item("default", input, span, &errors),
@@ -1128,9 +1130,7 @@ impl<'f> ParseAttributes<'f, syn::Field> for Field<'f> {
                             }
                         }
                         "alias" => {
-                            if !named {
-                                errors.push(span, "`alias` not allowed on tuple struct field");
-                            } else {
+                            if named {
                                 match errors
                                     .push_result(<_>::parse_meta_item_named(input, path, span))
                                 {
@@ -1151,6 +1151,8 @@ impl<'f> ParseAttributes<'f, syn::Field> for Field<'f> {
                                     }
                                     None => parse_helpers::skip_meta_item(input),
                                 }
+                            } else {
+                                errors.push(span, "`alias` not allowed on tuple struct field");
                             }
                         }
                         "container" => {
