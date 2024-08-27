@@ -405,7 +405,7 @@ pub fn derive_parse_attributes(item: TokenStream) -> TokenStream {
 pub fn derive_parse_meta_item(item: TokenStream) -> TokenStream {
     let errors = Errors::new();
     let mut tokens = util::parse::<syn::DeriveInput>(item, &errors)
-        .map(|input| parse_meta_item::impl_parse_meta_item(input, &errors))
+        .map(|input| parse_meta_item::impl_parse_meta_item(&input, &errors))
         .unwrap_or_default();
     tokens.extend(errors.into_compile_errors());
     tokens.into()

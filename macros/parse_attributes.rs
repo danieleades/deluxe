@@ -173,7 +173,7 @@ fn impl_for_enum<'i>(
 
 pub fn impl_parse_attributes(input: &syn::DeriveInput, errors: &Errors, mode: Mode) -> TokenStream {
     let attr = match &input.data {
-        syn::Data::Struct(struct_) => impl_for_struct(&input, struct_, mode, errors),
+        syn::Data::Struct(struct_) => impl_for_struct(input, struct_, mode, errors),
         syn::Data::Enum(_) => impl_for_enum(input, mode, errors),
         syn::Data::Union(union_) => {
             errors.push_spanned(
@@ -224,7 +224,7 @@ pub fn impl_parse_attributes(input: &syn::DeriveInput, errors: &Errors, mode: Mo
         // use inner type and lifetime from reference
         if let syn::Type::Reference(ref_) = ty {
             if container_lifetime.is_none() {
-                container_lifetime = ref_.lifetime.clone();
+                container_lifetime.clone_from(&ref_.lifetime);
             }
             container_is_ref = true;
             ty = &*ref_.elem;

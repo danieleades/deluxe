@@ -322,7 +322,7 @@ fn impl_for_enum(input: &syn::DeriveInput, errors: &Errors) -> Option<MetaDef> {
     })
 }
 
-pub fn impl_parse_meta_item(input: syn::DeriveInput, errors: &Errors) -> TokenStream {
+pub fn impl_parse_meta_item(input: &syn::DeriveInput, errors: &Errors) -> TokenStream {
     let meta = match &input.data {
         syn::Data::Struct(struct_) => impl_for_struct(&input, struct_, errors),
         syn::Data::Enum(_) => impl_for_enum(&input, errors),
@@ -331,7 +331,7 @@ pub fn impl_parse_meta_item(input: syn::DeriveInput, errors: &Errors) -> TokenSt
                 union.union_token,
                 "union not supported with derive(ParseMetaItem)",
             );
-            return Default::default();
+            return TokenStream::default();
         }
     };
     let Some(MetaDef {
