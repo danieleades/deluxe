@@ -32,7 +32,7 @@ fn impl_for_struct(
 
     let any_flat = struct_attr
         .as_ref()
-        .is_some_and(|s| s.fields.iter().any(Field::is_flat));
+        .map_or(false, |s| s.fields.iter().any(Field::is_flat));
     let (parse, parse_flat, inline, flag, field_names, mut extra) = struct_attr
         .as_mut()
         .map(|struct_attr| {
