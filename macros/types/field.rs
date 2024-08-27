@@ -281,7 +281,7 @@ impl<'f> Field<'f> {
                 quote_spanned! { ty.span() => <#ty as #crate_::#trait_> }
             })
     }
-    pub fn field_names() -> &'static [&'static str] {
+    pub const fn field_names() -> &'static [&'static str] {
         &[
             "rename",
             "flatten",
@@ -300,12 +300,12 @@ impl<'f> Field<'f> {
         fields: &[Self],
         crate_: &syn::Path,
     ) -> Option<TokenStream> {
-        if fields.iter().any(|f| f.rest.map(|v| *v).unwrap_or(false)) {
+        if fields.iter().any(|f| f.rest.map_or(false, |v| *v)) {
             return Some(quote_mixed! { true });
         }
         let mut flat_tys = fields
             .iter()
-            .filter(|f| f.flatten.as_ref().map(|f| f.value).unwrap_or(false))
+            .filter(|f| f.flatten.as_ref().map_or(false, |f| f.value))
             .map(|f| &f.field.ty)
             .peekable();
         flat_tys.peek().is_some().then(|| {
@@ -319,7 +319,7 @@ impl<'f> Field<'f> {
     ) -> TokenStream {
         if fields
             .iter()
-            .any(|f| f.flatten.as_ref().map(|f| f.value).unwrap_or(false))
+            .any(|f| f.flatten.as_ref().map_or(false, |f| f.value))
         {
             let names = fields.iter().filter(|f| f.is_parsable()).map(|f| match &f.flatten {
                 Some(FieldFlatten {
@@ -394,7 +394,7 @@ impl<'f> Field<'f> {
         priv_: &syn::Path,
     ) -> TokenStream {
         let ty = &self.field.ty;
-        if self.append.map(|v| *v).unwrap_or(false) {
+        if self.append.map_or(false, |v| *v) {
             let path = self.parse_path(crate_, "ParseMetaAppend");
             let idents = self.idents.iter().map(|i| i.to_string());
             quote_mixed! {
@@ -403,7 +403,7 @@ impl<'f> Field<'f> {
                     &#priv_::parse_helpers::join_paths(prefix, &[#(#idents),*]),
                 )
             }
-        } else if self.rest.map(|v| *v).unwrap_or(false) {
+        } else if self.rest.map_or(false, |v| *v) {
             let path = self.parse_path(crate_, "ParseMetaRest");
             quote_mixed! {
                 #path::parse_meta_rest(#inputs_expr, #allowed_expr)
@@ -415,14 +415,13 @@ impl<'f> Field<'f> {
         }) = self.flatten.as_ref()
         {
             if self.field.ident.is_some() {
-                let prefix = match prefix {
-                    Some(prefix) => {
-                        let prefix = parse_helpers::key_to_string(prefix);
-                        quote_mixed! {
-                            &#priv_::parse_helpers::join_prefix(prefix, #prefix)
-                        }
+                let prefix = if let Some(prefix) = prefix {
+                    let prefix = parse_helpers::key_to_string(prefix);
+                    quote_mixed! {
+                        &#priv_::parse_helpers::join_prefix(prefix, #prefix)
                     }
-                    None => quote_mixed! { "" },
+                } else {
+                    quote_mixed! { "" }
                 };
                 let path = self.parse_path(crate_, "ParseMetaFlatNamed");
                 quote_mixed! {
@@ -442,32 +441,30 @@ impl<'f> Field<'f> {
         } else if self.field.ident.is_some() {
             let path = self.parse_path(crate_, "ParseMetaItem");
             // named field
-            match &self.with {
-                Some(m) => {
-                    let value_ident = syn::Ident::new("value", Span::mixed_site());
-                    let input_ident = syn::Ident::new("input", Span::mixed_site());
-                    let p_ident = syn::Ident::new("p", Span::mixed_site());
-                    let span_ident = syn::Ident::new("span", Span::mixed_site());
-                    // bind the return to a variable to span a type conversion error properly
-                    quote_spanned! { m.span() =>
-                        {
-                            let #value_ident = #path::parse_meta_item_named(#input_ident, #p_ident, #span_ident);
-                            #value_ident
-                        }
+            self.with.as_ref().map_or_else(|| {
+                let func = quote_spanned! { ty.span() => #path::parse_meta_item_named };
+                quote_mixed! {
+                    #func(input, p, span)
+                }
+            }, |m| {
+                let value_ident = syn::Ident::new("value", Span::mixed_site());
+                let input_ident = syn::Ident::new("input", Span::mixed_site());
+                let p_ident = syn::Ident::new("p", Span::mixed_site());
+                let span_ident = syn::Ident::new("span", Span::mixed_site());
+                // bind the return to a variable to span a type conversion error properly
+                quote_spanned! { m.span() =>
+                    {
+                        let #value_ident = #path::parse_meta_item_named(#input_ident, #p_ident, #span_ident);
+                        #value_ident
                     }
                 }
-                None => {
-                    let func = quote_spanned! { ty.span() => #path::parse_meta_item_named };
-                    quote_mixed! {
-                        #func(input, p, span)
-                    }
-                }
-            }
+            })
         } else {
             let path = self.parse_path(crate_, "ParseMetaItem");
             // unnamed field
-            match &self.with {
-                Some(m) => {
+            self.with.as_ref().map_or_else(|| quote_mixed! {
+                        #path::parse_meta_item(input, #crate_::ParseMode::Unnamed)
+                    }, |m| {
                     let value_ident = syn::Ident::new("value", Span::mixed_site());
                     let input_ident = syn::Ident::new("input", Span::mixed_site());
                     quote_spanned! { m.span() =>
@@ -476,13 +473,7 @@ impl<'f> Field<'f> {
                             #value_ident
                         }
                     }
-                }
-                None => {
-                    quote_mixed! {
-                        #path::parse_meta_item(input, #crate_::ParseMode::Unnamed)
-                    }
-                }
-            }
+                })
         }
     }
     pub(super) fn to_pre_post_tokens(

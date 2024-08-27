@@ -46,9 +46,13 @@ fn impl_for_struct<'i>(
     let priv_path: syn::Path = syn::parse_quote! { #crate_::____private };
     let priv_ = &priv_path;
 
-    let parse = struct_attr
-        .as_ref()
-        .map(|s| {
+    let parse = struct_attr.as_ref().map_or_else(
+        || {
+            quote_mixed! {
+                #priv_::unreachable!()
+            }
+        },
+        |s| {
             let ItemDef { inline, .. } = s.to_parsing_tokens(
                 input,
                 crate_,
@@ -83,12 +87,8 @@ fn impl_for_struct<'i>(
                 #pre
                 #inline
             }
-        })
-        .unwrap_or_else(|| {
-            quote_mixed! {
-                #priv_::unreachable!()
-            }
-        });
+        },
+    );
     let (container_field, container_lifetime, container_ty) = struct_attr
         .as_ref()
         .map(|s| s.fields.as_slice())

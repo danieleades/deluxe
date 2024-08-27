@@ -760,7 +760,7 @@ fn parse_with() {
             int: Some(-4),
             int_vec: ::std::vec![1, 2],
             int_vec2: ::std::vec![],
-            int_vec3: Default::default(),
+            int_vec3: StructWithTransparent::default(),
             int_map: [].into()
         }
     );
@@ -770,7 +770,7 @@ fn parse_with() {
             int: None,
             int_vec: ::std::vec![],
             int_vec2: ::std::vec![1, 2],
-            int_vec3: Default::default(),
+            int_vec3: StructWithTransparent::default(),
             int_map: [].into()
         }
     );
@@ -780,7 +780,7 @@ fn parse_with() {
             int: None,
             int_vec: ::std::vec![],
             int_vec2: ::std::vec![1],
-            int_vec3: Default::default(),
+            int_vec3: StructWithTransparent::default(),
             int_map: [(make_path("unknown"), 2), (make_path("hello"), 3)].into()
         }
     );

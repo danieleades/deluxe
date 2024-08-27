@@ -656,7 +656,7 @@ impl<'v> ParseAttributes<'v, syn::Variant> for Variant<'v> {
                 for field in &fields {
                     if let Some(c) = field.container.as_ref() {
                         if container.is_some() {
-                            errors.push(c.span(), "Duplicate `container` field")
+                            errors.push(c.span(), "Duplicate `container` field");
                         } else {
                             container = Some(c);
                         }
