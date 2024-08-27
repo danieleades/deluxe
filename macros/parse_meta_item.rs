@@ -104,7 +104,7 @@ fn impl_for_struct(
                         #priv_::Option::Some(#field_count #( +  #extra_counts)*)
                     })
                 }
-                _ => None,
+                syn::Fields::Unit => None,
             };
             (parse, parse_flat, inline, flag, field_names, extra_traits)
         })

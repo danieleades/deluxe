@@ -1099,9 +1099,7 @@ impl<'f> ParseAttributes<'f, syn::Field> for Field<'f> {
                         "default" => default.parse_named_item("default", input, span, &errors),
                         "with" => with.parse_named_item("with", input, span, &errors),
                         "rename" => {
-                            if !named {
-                                errors.push(span, "`rename` not allowed on tuple struct field");
-                            } else {
+                            if named {
                                 rename.parse_named_item_with(
                                     "rename",
                                     input,
@@ -1125,6 +1123,8 @@ impl<'f> ParseAttributes<'f, syn::Field> for Field<'f> {
                                         }
                                     },
                                 );
+                            } else {
+                                errors.push(span, "`rename` not allowed on tuple struct field");
                             }
                         }
                         "alias" => {
@@ -1154,7 +1154,7 @@ impl<'f> ParseAttributes<'f, syn::Field> for Field<'f> {
                             }
                         }
                         "container" => {
-                            container.parse_named_item("container", input, span, &errors)
+                            container.parse_named_item("container", input, span, &errors);
                         }
                         "skip" => skip.parse_named_item("container", input, span, &errors),
                         "map" => {

@@ -171,10 +171,10 @@ fn impl_for_enum<'i>(
     })
 }
 
-pub fn impl_parse_attributes(input: syn::DeriveInput, errors: &Errors, mode: Mode) -> TokenStream {
+pub fn impl_parse_attributes(input: &syn::DeriveInput, errors: &Errors, mode: Mode) -> TokenStream {
     let attr = match &input.data {
         syn::Data::Struct(struct_) => impl_for_struct(&input, struct_, mode, errors),
-        syn::Data::Enum(_) => impl_for_enum(&input, mode, errors),
+        syn::Data::Enum(_) => impl_for_enum(input, mode, errors),
         syn::Data::Union(union_) => {
             errors.push_spanned(
                 union_.union_token,
@@ -186,7 +186,7 @@ pub fn impl_parse_attributes(input: syn::DeriveInput, errors: &Errors, mode: Mod
             return TokenStream::default();
         }
     };
-    let AttrImpl {
+    let Some(AttrImpl {
         parse,
         crate_path: crate_,
         priv_path: priv_,
@@ -194,9 +194,9 @@ pub fn impl_parse_attributes(input: syn::DeriveInput, errors: &Errors, mode: Mod
         container_field,
         mut container_lifetime,
         container_ty,
-    } = match attr {
-        Some(a) => a,
-        None => return Default::default(),
+    }) = attr
+    else {
+        return TokenStream::default();
     };
 
     let ident = &input.ident;

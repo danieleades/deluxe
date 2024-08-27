@@ -20,7 +20,7 @@ pub struct Variant<'v> {
 
 impl<'v> Variant<'v> {
     #[inline]
-    pub fn field_names() -> &'static [&'static str] {
+    pub const fn field_names() -> &'static [&'static str] {
         &[
             "skip",
             "rename",
@@ -32,7 +32,7 @@ impl<'v> Variant<'v> {
     }
     #[inline]
     pub fn is_skipped(&self) -> bool {
-        self.skip.map(|v| *v).unwrap_or(false)
+        self.skip.map_or(false, |v| *v)
     }
     pub(super) fn field_key(&self) -> BTreeSet<BTreeSet<String>> {
         self.fields
@@ -132,9 +132,46 @@ impl<'v> Variant<'v> {
             syn::Fields::Unnamed(_) => Some(quote_mixed! {
                 let mut index = 0usize;
             }),
-            _ => None,
+            syn::Fields::Unit => None,
         };
-        if let Some(flat) = flat {
+        flat.map_or_else(|| {
+            let flag = flag.unwrap_or_else(|| {
+                quote_mixed! {
+                    #crate_::Result::Err(#priv_::parse_helpers::flag_disallowed_error(span))
+                }
+            });
+            quote_mixed! {
+                #pre
+                let mut inline = |inputs: &[#priv_::ParseStream<'_>], _mode: #crate_::ParseMode| {
+                    #inline
+                };
+                let res = match #priv_::parse_helpers::try_parse_named_meta_item(input) {
+                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Equals) => {
+                        let _mode = #crate_::ParseMode::Named(span);
+                        #parse
+                    },
+                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Paren(buffer)) => {
+                        inline(&[&buffer], #crate_::ParseMode::Named(span))
+                            .and_then(|v| {
+                                #priv_::parse_helpers::parse_eof_or_trailing_comma(&buffer)?;
+                                #crate_::Result::Ok(v)
+                        })
+                    },
+                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Flag) => {
+                        #flag
+                    },
+                    #crate_::Result::Err(e) => #crate_::Result::Err(e),
+                };
+                if let #priv_::Option::Some(v) = errors.push_result(res) {
+                    value = #priv_::FieldStatus::Some(v);
+                } else {
+                    #priv_::parse_helpers::skip_meta_item(input);
+                    if value.is_none() {
+                        value = #priv_::FieldStatus::ParseError;
+                    }
+                }
+            }
+        }, |flat| {
             // unknown fields in an empty key really means the variant is unknown,
             // so error out early and don't continue parsing
             let validate_empty = match flat {
@@ -184,44 +221,7 @@ impl<'v> Variant<'v> {
                     value = #priv_::FieldStatus::ParseError;
                 }
             }
-        } else {
-            let flag = flag.unwrap_or_else(|| {
-                quote_mixed! {
-                    #crate_::Result::Err(#priv_::parse_helpers::flag_disallowed_error(span))
-                }
-            });
-            quote_mixed! {
-                #pre
-                let mut inline = |inputs: &[#priv_::ParseStream<'_>], _mode: #crate_::ParseMode| {
-                    #inline
-                };
-                let res = match #priv_::parse_helpers::try_parse_named_meta_item(input) {
-                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Equals) => {
-                        let _mode = #crate_::ParseMode::Named(span);
-                        #parse
-                    },
-                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Paren(buffer)) => {
-                        inline(&[&buffer], #crate_::ParseMode::Named(span))
-                            .and_then(|v| {
-                                #priv_::parse_helpers::parse_eof_or_trailing_comma(&buffer)?;
-                                #crate_::Result::Ok(v)
-                        })
-                    },
-                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Flag) => {
-                        #flag
-                    },
-                    #crate_::Result::Err(e) => #crate_::Result::Err(e),
-                };
-                if let #priv_::Option::Some(v) = errors.push_result(res) {
-                    value = #priv_::FieldStatus::Some(v);
-                } else {
-                    #priv_::parse_helpers::skip_meta_item(input);
-                    if value.is_none() {
-                        value = #priv_::FieldStatus::ParseError;
-                    }
-                }
-            }
-        }
+        })
     }
     fn all_variant_key_messages(
         variants: &[Self],

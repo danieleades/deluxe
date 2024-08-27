@@ -35,7 +35,11 @@ pub fn derive_extract_attributes(item: TokenStream) -> TokenStream {
     let errors = Errors::new();
     let mut tokens = util::parse::<syn::DeriveInput>(item, &errors)
         .map(|input| {
-            parse_attributes::impl_parse_attributes(input, &errors, parse_attributes::Mode::Extract)
+            parse_attributes::impl_parse_attributes(
+                &input,
+                &errors,
+                parse_attributes::Mode::Extract,
+            )
         })
         .unwrap_or_default();
     tokens.extend(errors.into_compile_errors());
@@ -115,7 +119,7 @@ pub fn derive_parse_attributes(item: TokenStream) -> TokenStream {
     let errors = Errors::new();
     let mut tokens = util::parse::<syn::DeriveInput>(item, &errors)
         .map(|input| {
-            parse_attributes::impl_parse_attributes(input, &errors, parse_attributes::Mode::Parse)
+            parse_attributes::impl_parse_attributes(&input, &errors, parse_attributes::Mode::Parse)
         })
         .unwrap_or_default();
     tokens.extend(errors.into_compile_errors());
