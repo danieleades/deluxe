@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use deluxe_core::Errors;
 use proc_macro2::{Span, TokenStream};
 
-use crate::types::*;
+use crate::types::{Enum, ItemDef, Struct, TokenMode};
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Mode {
@@ -12,7 +12,7 @@ pub enum Mode {
 }
 
 impl Mode {
-    fn into_token_mode(self) -> TokenMode {
+    const fn into_token_mode(self) -> TokenMode {
         match self {
             Self::Parse => TokenMode::ParseAttributes,
             Self::Extract => TokenMode::ExtractAttributes,
@@ -46,9 +46,13 @@ fn impl_for_struct<'i>(
     let priv_path: syn::Path = syn::parse_quote! { #crate_::____private };
     let priv_ = &priv_path;
 
-    let parse = struct_attr
-        .as_ref()
-        .map(|s| {
+    let parse = struct_attr.as_ref().map_or_else(
+        || {
+            quote_mixed! {
+                #priv_::unreachable!()
+            }
+        },
+        |s| {
             let ItemDef { inline, .. } = s.to_parsing_tokens(
                 input,
                 crate_,
@@ -58,10 +62,10 @@ fn impl_for_struct<'i>(
             );
             let pre = match &struct_.fields {
                 syn::Fields::Named(_) => {
-                    let field_names = struct_attr
-                        .as_ref()
-                        .map(|s| s.to_field_names_tokens(crate_, priv_))
-                        .unwrap_or_else(|| quote_mixed! { &[] });
+                    let field_names = struct_attr.as_ref().map_or_else(
+                        || quote_mixed! { &[] },
+                        |s| s.to_field_names_tokens(crate_, priv_),
+                    );
                     let accepts_all = struct_attr
                         .as_ref()
                         .and_then(|s| s.to_accepts_all_tokens(crate_))
@@ -77,18 +81,14 @@ fn impl_for_struct<'i>(
                         let mut index = 0usize;
                     }
                 }
-                _ => quote::quote! {},
+                syn::Fields::Unit => quote::quote! {},
             };
             quote_mixed! {
                 #pre
                 #inline
             }
-        })
-        .unwrap_or_else(|| {
-            quote_mixed! {
-                #priv_::unreachable!()
-            }
-        });
+        },
+    );
     let (container_field, container_lifetime, container_ty) = struct_attr
         .as_ref()
         .map(|s| s.fields.as_slice())
@@ -171,10 +171,10 @@ fn impl_for_enum<'i>(
     })
 }
 
-pub fn impl_parse_attributes(input: syn::DeriveInput, errors: &Errors, mode: Mode) -> TokenStream {
+pub fn impl_parse_attributes(input: &syn::DeriveInput, errors: &Errors, mode: Mode) -> TokenStream {
     let attr = match &input.data {
-        syn::Data::Struct(struct_) => impl_for_struct(&input, struct_, mode, errors),
-        syn::Data::Enum(_) => impl_for_enum(&input, mode, errors),
+        syn::Data::Struct(struct_) => impl_for_struct(input, struct_, mode, errors),
+        syn::Data::Enum(_) => impl_for_enum(input, mode, errors),
         syn::Data::Union(union_) => {
             errors.push_spanned(
                 union_.union_token,
@@ -183,10 +183,10 @@ pub fn impl_parse_attributes(input: syn::DeriveInput, errors: &Errors, mode: Mod
                     Mode::Extract => "union not supported with derive(ExtractAttributes)",
                 },
             );
-            return Default::default();
+            return TokenStream::default();
         }
     };
-    let AttrImpl {
+    let Some(AttrImpl {
         parse,
         crate_path: crate_,
         priv_path: priv_,
@@ -194,9 +194,9 @@ pub fn impl_parse_attributes(input: syn::DeriveInput, errors: &Errors, mode: Mod
         container_field,
         mut container_lifetime,
         container_ty,
-    } = match attr {
-        Some(a) => a,
-        None => return Default::default(),
+    }) = attr
+    else {
+        return TokenStream::default();
     };
 
     let ident = &input.ident;
@@ -224,7 +224,7 @@ pub fn impl_parse_attributes(input: syn::DeriveInput, errors: &Errors, mode: Mod
         // use inner type and lifetime from reference
         if let syn::Type::Reference(ref_) = ty {
             if container_lifetime.is_none() {
-                container_lifetime = ref_.lifetime.clone();
+                container_lifetime.clone_from(&ref_.lifetime);
             }
             container_is_ref = true;
             ty = &*ref_.elem;

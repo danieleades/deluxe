@@ -11,7 +11,7 @@ pub fn only_one<'t, I, O>(attrs: I, prefix: &str, errors: &Errors)
 where
     I: IntoIterator<Item = &'t (&'static str, O)>,
     I::IntoIter: Clone,
-    O: Into<Option<&'t dyn syn::spanned::Spanned>> + Clone + ?Sized + 't,
+    O: Into<Option<&'t dyn syn::spanned::Spanned>> + Clone + 't,
 {
     let iter = attrs.into_iter();
     let present_spans = iter.clone().filter_map(|f| f.1.clone().into());
@@ -41,11 +41,11 @@ pub fn all_or_none<'t, I, O>(attrs: I, prefix: &str, errors: &Errors)
 where
     I: IntoIterator<Item = &'t (&'static str, O)>,
     I::IntoIter: Clone,
-    O: Into<Option<&'t dyn syn::spanned::Spanned>> + Clone + ?Sized + 't,
+    O: Into<Option<&'t dyn syn::spanned::Spanned>> + Clone + 't,
 {
     let iter = attrs.into_iter();
     let mut search = iter.clone().cloned().map(|f| f.1.into());
-    let first_is_some = search.next().map(|f| f.is_some()).unwrap_or(false);
+    let first_is_some = search.next().map_or(false, |f| f.is_some());
     if search.any(|f| f.is_some() != first_is_some) {
         let mut names = String::new();
         for (n, o) in iter.clone().cloned() {

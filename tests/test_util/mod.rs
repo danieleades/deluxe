@@ -32,5 +32,5 @@ pub fn parse_flag<T: ::deluxe::ParseMetaItem>() -> ::deluxe::Result<T> {
     let parser = |stream: ::syn::parse::ParseStream<'_>| {
         <T as ::deluxe::ParseMetaItem>::parse_meta_item_flag(stream.span())
     };
-    parser.parse2(Default::default())
+    parser.parse2(TokenStream::default())
 }

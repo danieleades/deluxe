@@ -1,4 +1,4 @@
-use super::*;
+use super::{Field, FieldData, FieldDefault, FieldFlatten, ItemDef, ParseTarget, TokenMode};
 use deluxe_core::{
     parse_helpers::{self, FieldStatus},
     ParseAttributes, ParseMetaItem, Result, SpannedValue,
@@ -20,7 +20,7 @@ pub struct Variant<'v> {
 
 impl<'v> Variant<'v> {
     #[inline]
-    pub fn field_names() -> &'static [&'static str] {
+    pub const fn field_names() -> &'static [&'static str] {
         &[
             "skip",
             "rename",
@@ -32,7 +32,7 @@ impl<'v> Variant<'v> {
     }
     #[inline]
     pub fn is_skipped(&self) -> bool {
-        self.skip.map(|v| *v).unwrap_or(false)
+        self.skip.map_or(false, |v| *v)
     }
     pub(super) fn field_key(&self) -> BTreeSet<BTreeSet<String>> {
         self.fields
@@ -132,9 +132,46 @@ impl<'v> Variant<'v> {
             syn::Fields::Unnamed(_) => Some(quote_mixed! {
                 let mut index = 0usize;
             }),
-            _ => None,
+            syn::Fields::Unit => None,
         };
-        if let Some(flat) = flat {
+        flat.map_or_else(|| {
+            let flag = flag.unwrap_or_else(|| {
+                quote_mixed! {
+                    #crate_::Result::Err(#priv_::parse_helpers::flag_disallowed_error(span))
+                }
+            });
+            quote_mixed! {
+                #pre
+                let mut inline = |inputs: &[#priv_::ParseStream<'_>], _mode: #crate_::ParseMode| {
+                    #inline
+                };
+                let res = match #priv_::parse_helpers::try_parse_named_meta_item(input) {
+                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Equals) => {
+                        let _mode = #crate_::ParseMode::Named(span);
+                        #parse
+                    },
+                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Paren(buffer)) => {
+                        inline(&[&buffer], #crate_::ParseMode::Named(span))
+                            .and_then(|v| {
+                                #priv_::parse_helpers::parse_eof_or_trailing_comma(&buffer)?;
+                                #crate_::Result::Ok(v)
+                        })
+                    },
+                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Flag) => {
+                        #flag
+                    },
+                    #crate_::Result::Err(e) => #crate_::Result::Err(e),
+                };
+                if let #priv_::Option::Some(v) = errors.push_result(res) {
+                    value = #priv_::FieldStatus::Some(v);
+                } else {
+                    #priv_::parse_helpers::skip_meta_item(input);
+                    if value.is_none() {
+                        value = #priv_::FieldStatus::ParseError;
+                    }
+                }
+            }
+        }, |flat| {
             // unknown fields in an empty key really means the variant is unknown,
             // so error out early and don't continue parsing
             let validate_empty = match flat {
@@ -184,44 +221,7 @@ impl<'v> Variant<'v> {
                     value = #priv_::FieldStatus::ParseError;
                 }
             }
-        } else {
-            let flag = flag.unwrap_or_else(|| {
-                quote_mixed! {
-                    #crate_::Result::Err(#priv_::parse_helpers::flag_disallowed_error(span))
-                }
-            });
-            quote_mixed! {
-                #pre
-                let mut inline = |inputs: &[#priv_::ParseStream<'_>], _mode: #crate_::ParseMode| {
-                    #inline
-                };
-                let res = match #priv_::parse_helpers::try_parse_named_meta_item(input) {
-                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Equals) => {
-                        let _mode = #crate_::ParseMode::Named(span);
-                        #parse
-                    },
-                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Paren(buffer)) => {
-                        inline(&[&buffer], #crate_::ParseMode::Named(span))
-                            .and_then(|v| {
-                                #priv_::parse_helpers::parse_eof_or_trailing_comma(&buffer)?;
-                                #crate_::Result::Ok(v)
-                        })
-                    },
-                    #crate_::Result::Ok(#priv_::parse_helpers::NamedParse::Flag) => {
-                        #flag
-                    },
-                    #crate_::Result::Err(e) => #crate_::Result::Err(e),
-                };
-                if let #priv_::Option::Some(v) = errors.push_result(res) {
-                    value = #priv_::FieldStatus::Some(v);
-                } else {
-                    #priv_::parse_helpers::skip_meta_item(input);
-                    if value.is_none() {
-                        value = #priv_::FieldStatus::ParseError;
-                    }
-                }
-            }
-        }
+        })
     }
     fn all_variant_key_messages(
         variants: &[Self],
@@ -266,7 +266,7 @@ impl<'v> Variant<'v> {
             if v.flatten.unwrap_or(false) || v.is_skipped() {
                 return None;
             }
-            let idents = v.idents.iter().map(|i| i.to_string()).collect::<Vec<_>>();
+            let idents = v.idents.iter().map(ToString::to_string).collect::<Vec<_>>();
             let parse = v.to_field_parsing_tokens(crate_, priv_, mode, None);
             Some(quote_mixed! {
                 #(#priv_::Option::Some(k @ #idents))|* => {
@@ -471,12 +471,13 @@ impl<'v> Variant<'v> {
         }
         self.fields
             .iter()
-            .map(|field| match &field.flatten {
-                Some(FieldFlatten {
+            .map(|field| {
+                if let Some(FieldFlatten {
                     value: true,
                     prefix,
                     ..
-                }) => {
+                }) = &field.flatten
+                {
                     let ty = &field.field.ty;
                     let names = quote_spanned! { ty.span() =>
                         <#ty as #crate_::ParseMetaFlatNamed>::field_names()
@@ -486,9 +487,8 @@ impl<'v> Variant<'v> {
                         .map(parse_helpers::key_to_string)
                         .unwrap_or_default();
                     quote_mixed! { (#prefix, #names) }
-                }
-                _ => {
-                    let idents = field.idents.iter().map(|i| i.to_string());
+                } else {
+                    let idents = field.idents.iter().map(ToString::to_string);
                     quote_mixed! { ("", &[#(#idents),*]) }
                 }
             })
@@ -530,13 +530,12 @@ impl<'v> ParseAttributes<'v, syn::Variant> for Variant<'v> {
                                 |input, _, span| {
                                     let mut iter = fields.iter().filter(|f| f.is_parsable());
                                     if let Some(first) = iter.next() {
-                                        if first.flatten.as_ref().map(|f| f.value).unwrap_or(false)
-                                        {
+                                        if first.flatten.as_ref().map_or(false, |f| f.value) {
                                             return Err(syn::Error::new(
                                                 span,
                                                 "`transparent` variant field cannot be `flat`",
                                             ));
-                                        } else if first.append.map(|v| *v).unwrap_or(false) {
+                                        } else if first.append.map_or(false, |v| *v) {
                                             return Err(syn::Error::new(
                                                 span,
                                                 "`transparent` variant field cannot be `append`",
@@ -657,7 +656,7 @@ impl<'v> ParseAttributes<'v, syn::Variant> for Variant<'v> {
                 for field in &fields {
                     if let Some(c) = field.container.as_ref() {
                         if container.is_some() {
-                            errors.push(c.span(), "Duplicate `container` field")
+                            errors.push(c.span(), "Duplicate `container` field");
                         } else {
                             container = Some(c);
                         }

@@ -84,20 +84,22 @@ impl<T> FieldStatus<T> {
     }
     /// Returns the status if it contains a value, or if it is `None` then returns `b`.
     #[inline]
-    pub fn or(self, b: FieldStatus<T>) -> FieldStatus<T> {
+    #[must_use]
+    pub fn or(self, b: Self) -> Self {
         match self {
-            Self::Some(x) => FieldStatus::Some(x),
-            Self::ParseError => FieldStatus::ParseError,
+            Self::Some(x) => Self::Some(x),
+            Self::ParseError => Self::ParseError,
             Self::None => b,
         }
     }
     /// Returns the status if it contains a value, or if it is `None` then calls `f` and returns
     /// the result.
     #[inline]
-    pub fn or_else<F: FnOnce() -> FieldStatus<T>>(self, f: F) -> FieldStatus<T> {
+    #[must_use]
+    pub fn or_else<F: FnOnce() -> Self>(self, f: F) -> Self {
         match self {
-            Self::Some(x) => FieldStatus::Some(x),
-            Self::ParseError => FieldStatus::ParseError,
+            Self::Some(x) => Self::Some(x),
+            Self::ParseError => Self::ParseError,
             Self::None => f(),
         }
     }
@@ -148,7 +150,7 @@ impl<T> FieldStatus<T> {
     where
         T: ParseMetaItem,
     {
-        self.parse_named_item_with(name, input, span, errors, T::parse_meta_item_named)
+        self.parse_named_item_with(name, input, span, errors, T::parse_meta_item_named);
     }
     /// Parses a named item into this status, using a custom parsing function.
     #[inline]
@@ -165,18 +167,15 @@ impl<T> FieldStatus<T> {
         if !self.is_none() {
             errors.push(span, format_args!("duplicate attribute for `{name}`"));
         }
-        match errors.push_result(func(input, name, span)) {
-            Some(v) => {
-                if self.is_none() {
-                    *self = FieldStatus::Some(v)
-                }
+        if let Some(v) = errors.push_result(func(input, name, span)) {
+            if self.is_none() {
+                *self = Self::Some(v);
             }
-            None => {
-                if self.is_none() {
-                    *self = FieldStatus::ParseError;
-                }
-                skip_meta_item(input);
+        } else {
+            if self.is_none() {
+                *self = Self::ParseError;
             }
+            skip_meta_item(input);
         }
     }
     /// Parses an unnamed item into this status.
@@ -185,7 +184,7 @@ impl<T> FieldStatus<T> {
     where
         T: ParseMetaItem,
     {
-        self.parse_unnamed_item_with(input, errors, T::parse_meta_item)
+        self.parse_unnamed_item_with(input, errors, T::parse_meta_item);
     }
     /// Parses an unnamed item into this status, using a custom parsing function.
     #[inline]
@@ -193,12 +192,11 @@ impl<T> FieldStatus<T> {
     where
         F: FnOnce(ParseStream, ParseMode) -> Result<T>,
     {
-        match errors.push_result(func(input, ParseMode::Unnamed)) {
-            Some(v) => *self = FieldStatus::Some(v),
-            None => {
-                *self = FieldStatus::ParseError;
-                skip_meta_item(input);
-            }
+        if let Some(v) = errors.push_result(func(input, ParseMode::Unnamed)) {
+            *self = Self::Some(v);
+        } else {
+            *self = Self::ParseError;
+            skip_meta_item(input);
         }
     }
     /// Converts the status to an [`Option`].
@@ -228,10 +226,7 @@ impl<T> From<FieldStatus<T>> for Option<T> {
 impl<T> From<Option<T>> for FieldStatus<T> {
     #[inline]
     fn from(value: Option<T>) -> Self {
-        match value {
-            Some(v) => Self::Some(v),
-            None => Self::None,
-        }
+        value.map_or_else(|| Self::None, Self::Some)
     }
 }
 
@@ -309,6 +304,8 @@ pub fn peek_eof_or_trailing_comma(input: ParseStream) -> bool {
 
 /// Parses a stream for end-of-stream, or a single comma.
 ///
+/// # Errors
+///
 /// Returns a parse error if any other tokens are present besides a single comma.
 #[inline]
 pub fn parse_eof_or_trailing_comma(input: ParseStream) -> Result<()> {
@@ -326,6 +323,8 @@ pub fn parse_eof_or_trailing_comma(input: ParseStream) -> Result<()> {
 }
 
 /// Runs a parsing function from an empty token stream.
+///
+/// # Errors
 ///
 /// Creates an empty token stream and then calls `func` on it. Any errors returned from `func` will
 /// be changed to make them spanned with `span`.
@@ -377,7 +376,7 @@ where
     } else {
         let span = match mode {
             ParseMode::Named(span) => span,
-            _ => Span::call_site(),
+            ParseMode::Unnamed => Span::call_site(),
         };
         parse_empty(span, |input| func(input, mode))
     }
@@ -743,6 +742,7 @@ pub fn key_to_string<T: ToKeyString>(t: &T) -> SmallString<'static> {
 /// If `prefix` is empty, returns `path`. Otherwise, joins `prefix` and `path` together with `::`
 /// as a separator. If `prefix` ends with `::` then no additional `::` will be added.
 #[inline]
+#[must_use]
 pub fn join_path<'path>(prefix: &str, path: &'path str) -> Cow<'path, str> {
     if prefix.is_empty() {
         Cow::Borrowed(path)
@@ -759,6 +759,7 @@ pub fn join_path<'path>(prefix: &str, path: &'path str) -> Cow<'path, str> {
 /// The returned string will be suitable to pass to [`str::strip_prefix`] after calling
 /// [`key_to_string`].
 #[inline]
+#[must_use]
 pub fn join_prefix(prefix: &str, path: &str) -> String {
     if prefix.is_empty() {
         let mut out = path.to_string();
@@ -777,6 +778,7 @@ pub fn join_prefix(prefix: &str, path: &str) -> String {
 
 /// Calls [`join_path`] on all paths in a slice.
 #[inline]
+#[must_use]
 pub fn join_paths<'s>(prefix: &str, paths: &[&'s str]) -> Vec<Cow<'s, str>> {
     paths.iter().map(|p| join_path(prefix, p)).collect()
 }
@@ -784,7 +786,7 @@ pub fn join_paths<'s>(prefix: &str, paths: &[&'s str]) -> Vec<Cow<'s, str>> {
 #[inline]
 #[doc(hidden)]
 pub fn extend_from_owned<'s>(vec: &mut Vec<&'s str>, owned: &'s [Cow<'s, str>]) {
-    vec.extend(owned.iter().map(|p| p.as_ref()));
+    vec.extend(owned.iter().map(std::convert::AsRef::as_ref));
 }
 
 /// Checks if a path matches a list of names.
@@ -792,6 +794,7 @@ pub fn extend_from_owned<'s>(vec: &mut Vec<&'s str>, owned: &'s [Cow<'s, str>]) 
 /// Each string in `segs` is checked against `path.segments[..].ident`.
 ///
 /// Returns `false` if the paths are different, or if any segments have generic arguments.
+#[must_use]
 pub fn path_matches(path: &syn::Path, segs: &[&str]) -> bool {
     if path.segments.len() != segs.len() {
         return false;
@@ -812,6 +815,7 @@ pub fn path_matches(path: &syn::Path, segs: &[&str]) -> bool {
 /// A key is a list of names that could be used for a field. Returns `true` if each key has at
 /// least one name present in `paths`.
 #[inline]
+#[must_use]
 pub fn has_paths(paths: &HashMap<SmallString<'static>, Span>, keys: &[&[&str]]) -> bool {
     keys.iter()
         .all(|ks| ks.iter().any(|i| paths.contains_key(*i)))
@@ -862,7 +866,7 @@ pub fn disallow_paths(
 pub fn inputs_span<'s, S: Borrow<ParseBuffer<'s>>>(inputs: &[S]) -> Span {
     let mut iter = inputs.iter();
     let first = iter.next();
-    if let Some(input) = first {
+    first.map_or_else(Span::call_site, |input| {
         let mut span = input.borrow().span();
         for next in iter {
             if let Some(joined) = span.join(next.borrow().span()) {
@@ -870,15 +874,14 @@ pub fn inputs_span<'s, S: Borrow<ParseBuffer<'s>>>(inputs: &[S]) -> Span {
             }
         }
         span
-    } else {
-        Span::call_site()
-    }
+    })
 }
 
 /// Returns an error with a "missing required field" message.
 ///
 /// The error will be spanned to `span`.
 #[inline]
+#[must_use]
 pub fn missing_field_error(name: &str, span: Span) -> Error {
     syn::Error::new(span, format_args!("missing required field {name}"))
 }
@@ -887,6 +890,7 @@ pub fn missing_field_error(name: &str, span: Span) -> Error {
 ///
 /// The error will be spanned to `span`.
 #[inline]
+#[must_use]
 pub fn flag_disallowed_error(span: Span) -> Error {
     syn::Error::new(span, "unexpected flag, expected `=` or parentheses")
 }
@@ -897,11 +901,12 @@ pub fn flag_disallowed_error(span: Span) -> Error {
 /// of allowed fields can be passed in `fields`. If any fields are a close enough match to `path`,
 /// then a "did you mean" message will be appended to the end of the error message. The error will
 /// be spanned to `span`.
+#[must_use]
 pub fn unknown_error(path: &str, span: Span, fields: &[&str]) -> Error {
     let mut closest = None;
     for field in fields {
         let sim = strsim::jaro_winkler(path, field);
-        if sim > 0.8 && closest.as_ref().map(|(s, _)| sim > *s).unwrap_or(true) {
+        if sim > 0.8 && closest.as_ref().map_or(true, |(s, _)| sim > *s) {
             closest = Some((sim, *field));
         }
     }
@@ -939,10 +944,12 @@ where
     P: crate::ParseAttributes<'t, T>,
     T: crate::HasAttributes,
 {
-    T::attrs(input).iter().filter_map(|a| {
-        P::path_matches(a.path()).then(|| {
+    T::attrs(input)
+        .iter()
+        .filter(|&a| P::path_matches(a.path()))
+        .map(|a| {
             let value = match &a.meta {
-                syn::Meta::Path(_) => Default::default(),
+                syn::Meta::Path(_) => TokenStream::default(),
                 syn::Meta::List(list) => proc_macro2::TokenTree::Group(proc_macro2::Group::new(
                     match list.delimiter {
                         syn::MacroDelimiter::Paren(_) => proc_macro2::Delimiter::Parenthesis,
@@ -956,7 +963,6 @@ where
             };
             (value, key_to_string(a.path()), a.path().span())
         })
-    })
 }
 
 /// Returns an iterator of [`TokenStream`](proc_macro2::TokenStream)s and the corresponding path
@@ -981,7 +987,7 @@ where
             let span = attr.path().span();
             let key = key_to_string(attr.path());
             let value = match attr.meta {
-                syn::Meta::Path(_) => Default::default(),
+                syn::Meta::Path(_) => TokenStream::default(),
                 syn::Meta::List(list) => proc_macro2::TokenTree::Group(proc_macro2::Group::new(
                     match list.delimiter {
                         syn::MacroDelimiter::Paren(_) => proc_macro2::Delimiter::Parenthesis,
@@ -1006,13 +1012,14 @@ where
 /// Returns [`Span::call_site`](proc_macro2::Span::call_site) if the slice is empty.
 #[inline]
 pub fn first_span(spans: &[(SmallString<'static>, Span)]) -> Span {
-    spans.first().map(|s| s.1).unwrap_or_else(Span::call_site)
+    spans.first().map_or_else(Span::call_site, |s| s.1)
 }
 
 /// Gets the first string in a list of path names and spans.
 ///
 /// Returns [`None`] if the slice is empty.
 #[inline]
+#[must_use]
 pub fn first_path_name<'a>(spans: &'a [(SmallString<'static>, Span)]) -> Option<&'a str> {
     spans.first().map(|s| s.0.as_str())
 }

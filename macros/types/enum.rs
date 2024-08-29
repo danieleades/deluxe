@@ -1,4 +1,4 @@
-use super::*;
+use super::{Field, FieldDefault, FieldFlatten, TokenMode, Variant};
 use deluxe_core::{
     parse_helpers::{self, FieldStatus},
     ParseAttributes, ParseMetaItem, Result,
@@ -9,7 +9,7 @@ use std::collections::{BTreeSet, HashSet};
 use syn::spanned::Spanned;
 
 pub struct Enum<'e> {
-    pub enum_: &'e syn::DataEnum,
+    pub _enum_: &'e syn::DataEnum,
     pub variants: Vec<Variant<'e>>,
     pub default: Option<FieldDefault>,
     pub crate_: Option<syn::Path>,
@@ -20,7 +20,7 @@ pub struct Enum<'e> {
 
 impl<'e> Enum<'e> {
     #[inline]
-    pub fn field_names() -> &'static [&'static str] {
+    pub const fn field_names() -> &'static [&'static str] {
         &["default", "crate", "attributes", "and_then"]
     }
     #[inline]
@@ -69,7 +69,7 @@ impl<'e> Enum<'e> {
         let any_flat_nested = self
             .variants
             .iter()
-            .any(|v| v.flatten.unwrap_or(false) && v.fields.iter().any(|f| f.is_flat()));
+            .any(|v| v.flatten.unwrap_or(false) && v.fields.iter().any(Field::is_flat));
         let field_names = self.variants.iter().flat_map(|v| {
             v.idents
                 .iter()
@@ -129,18 +129,14 @@ impl<'e> Enum<'e> {
                         if !v.flatten.unwrap_or(false) {
                             return None;
                         }
-                        match &field.flatten {
-                            Some(FieldFlatten {
-                                value: true,
-                                ..
-                            }) => None,
-                            _ => {
-                                let ident = ident.to_string();
-                                if any_flat_nested {
-                                    Some(quote_mixed! { vec.push(#ident); })
-                                } else {
-                                    Some(quote_mixed! { #ident })
-                                }
+                        if let Some(FieldFlatten { value: true, .. }) = &field.flatten {
+                            None
+                        } else {
+                            let ident = ident.to_string();
+                            if any_flat_nested {
+                                Some(quote_mixed! { vec.push(#ident); })
+                            } else {
+                                Some(quote_mixed! { #ident })
                             }
                         }
                     })
@@ -176,9 +172,8 @@ impl<'e> ParseAttributes<'e, syn::DeriveInput> for Enum<'e> {
         parse_helpers::parse_struct_attr_tokens(
             parse_helpers::ref_tokens::<Self, _>(i),
             |inputs, _| {
-                let enum_ = match &i.data {
-                    syn::Data::Enum(e) => e,
-                    _ => return Err(syn::Error::new_spanned(i, "wrong DeriveInput type")),
+                let syn::Data::Enum(enum_) = &i.data else {
+                    return Err(syn::Error::new_spanned(i, "wrong DeriveInput type"));
                 };
                 let errors = crate::Errors::new();
                 let mut default = FieldStatus::<FieldDefault>::None;
@@ -260,7 +255,7 @@ impl<'e> ParseAttributes<'e, syn::DeriveInput> for Enum<'e> {
                     }
                     if !variant.flatten.unwrap_or(false) {
                         variant_keys.insert(
-                            [variant.idents.iter().map(|i| i.to_string()).collect()].into(),
+                            [variant.idents.iter().map(ToString::to_string).collect()].into(),
                         );
                         for ident in &variant.idents {
                             if all_idents.contains(&ident) {
@@ -304,7 +299,7 @@ impl<'e> ParseAttributes<'e, syn::DeriveInput> for Enum<'e> {
                 }
                 errors.check()?;
                 Ok(Self {
-                    enum_,
+                    _enum_: enum_,
                     variants,
                     default: default.into(),
                     crate_: crate_.into(),

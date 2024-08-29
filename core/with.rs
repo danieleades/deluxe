@@ -353,7 +353,7 @@ pub mod syn_quoted {
     }
 }
 
-/// Generates a module for parsing an optional value using `#[deluxe(with = ...)].
+/// Generates a module for parsing an optional value using `#[deluxe(with = ...)]`.
 ///
 /// Takes three arguments separated by commas:
 /// - The generated module. Can include attributes and a visibility specifier.
@@ -438,7 +438,7 @@ macro_rules! define_with_optional {
     };
 }
 
-/// Generates a module for parsing a collection using `#[deluxe(with = ...)].
+/// Generates a module for parsing a collection using `#[deluxe(with = ...)]`.
 ///
 /// Takes three arguments separated by commas:
 /// - The generated module. Can include attributes and a visibility specifier.
@@ -578,7 +578,7 @@ macro_rules! define_with_collection {
     };
 }
 
-/// Generates a module for parsing a map collection using `#[deluxe(with = ...)].
+/// Generates a module for parsing a map collection using `#[deluxe(with = ...)]`.
 ///
 /// Takes four arguments separated by commas:
 /// - The generated module. Can include attributes and a visibility specifier.

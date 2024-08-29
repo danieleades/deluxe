@@ -9,7 +9,13 @@ use std::{
 };
 use syn::parse::{ParseBuffer, ParseStream};
 
-use crate::{parse_helpers::inputs_span, parse_meta::*};
+use crate::{
+    parse_helpers::inputs_span,
+    parse_meta::{
+        ParseMetaAppend, ParseMetaFlatNamed, ParseMetaFlatUnnamed, ParseMetaItem, ParseMetaRest,
+        ParseMode,
+    },
+};
 
 /// The error type for parsers.
 pub type Error = syn::Error;
@@ -27,6 +33,7 @@ pub struct Errors {
 impl Errors {
     #[inline]
     /// Creates a new empty error list.
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             errors: RefCell::new(None),
@@ -107,11 +114,7 @@ impl Errors {
     /// combined using [`Error::combine`](syn::Error::combine).
     #[inline]
     pub fn into_result<T>(self, value: T) -> Result<T> {
-        if let Some(err) = self.errors.take() {
-            Err(err)
-        } else {
-            Ok(value)
-        }
+        self.errors.take().map_or_else(|| Ok(value), |err| Err(err))
     }
     /// Checks if the error list is empty.
     ///
@@ -128,11 +131,9 @@ impl Errors {
     /// Panics if the error list is empty.
     #[inline]
     pub fn unwrap_err(self) -> Error {
-        if let Some(err) = self.errors.take() {
-            err
-        } else {
-            panic!("expected Errors to not be empty");
-        }
+        self.errors
+            .take()
+            .unwrap_or_else(|| panic!("expected Errors to not be empty"))
     }
     /// Returns a new `Err` if the error list has errors.
     ///
@@ -150,7 +151,7 @@ impl Errors {
     /// Returns [`None`] if the list is empty.
     #[inline]
     pub fn into_compile_error(self) -> Option<TokenStream> {
-        self.errors.take().map(|e| e.into_compile_error())
+        self.errors.take().map(syn::Error::into_compile_error)
     }
     /// Returns an iterator of token streams containing [`std::compile_error`] invocations.
     ///
@@ -161,7 +162,7 @@ impl Errors {
         self.errors
             .take()
             .into_iter()
-            .map(|e| e.into_compile_error())
+            .map(syn::Error::into_compile_error)
     }
     /// Creates a token stream containing the current set of errors and `item`.
     pub fn output_with<Q: quote::ToTokens>(self, item: Q) -> TokenStream {
@@ -180,7 +181,7 @@ impl quote::ToTokens for Errors {
         self.errors
             .borrow()
             .as_ref()
-            .map(|e| e.to_compile_error())
+            .map(syn::Error::to_compile_error)
             .unwrap_or_default()
     }
     #[inline]
@@ -221,7 +222,7 @@ impl IntoIterator for Errors {
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         ErrorsIntoIter {
-            errors: self.errors.take().map(|e| e.into_iter()),
+            errors: self.errors.take().map(std::iter::IntoIterator::into_iter),
         }
     }
 }
@@ -234,7 +235,7 @@ pub struct ErrorsIntoIter {
 impl Iterator for ErrorsIntoIter {
     type Item = Error;
     fn next(&mut self) -> Option<Self::Item> {
-        self.errors.as_mut().and_then(|e| e.next())
+        self.errors.as_mut().and_then(std::iter::Iterator::next)
     }
 }
 
@@ -257,12 +258,12 @@ impl<T> SpannedValue<T> {
     }
     /// Creates a new value wrapping a T, with the span set to `span`.
     #[inline]
-    pub fn with_span(value: T, span: Span) -> Self {
+    pub const fn with_span(value: T, span: Span) -> Self {
         Self { value, span }
     }
     /// Unwraps a `SpannedValue` into a `T`. Note this is an associated function, not a method.
     #[inline]
-    pub fn into_inner(value: SpannedValue<T>) -> T {
+    pub fn into_inner(value: Self) -> T {
         value.value
     }
 }
@@ -314,7 +315,8 @@ impl<T: Hash> Hash for SpannedValue<T> {
 impl<T> quote::ToTokens for SpannedValue<T> {
     #[inline]
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let mut group = proc_macro2::Group::new(proc_macro2::Delimiter::None, Default::default());
+        let mut group =
+            proc_macro2::Group::new(proc_macro2::Delimiter::None, TokenStream::default());
         group.set_span(self.span);
         tokens.append(group);
     }
@@ -466,22 +468,26 @@ pub struct Flag(Option<Span>);
 impl Flag {
     /// Creates a new `true` flag value spanned to `span`.
     #[inline]
-    pub fn set(span: Span) -> Self {
+    #[must_use]
+    pub const fn set(span: Span) -> Self {
         Self(Some(span))
     }
     /// Creates a new `true` flag value spanned to [`Span::call_site`].
     #[inline]
+    #[must_use]
     pub fn set_call_site() -> Self {
         Self(Some(Span::call_site()))
     }
     /// Creates a new `false` flag value.
     #[inline]
-    pub fn unset() -> Self {
+    #[must_use]
+    pub const fn unset() -> Self {
         Self(None)
     }
     /// Returns `true` if the flag was set.
     #[inline]
-    pub fn is_set(&self) -> bool {
+    #[must_use]
+    pub const fn is_set(&self) -> bool {
         self.0.is_some()
     }
 }
@@ -527,7 +533,7 @@ impl quote::ToTokens for Flag {
     #[inline]
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.append(proc_macro2::Ident::new(
-            self.0.map(|_| "true").unwrap_or("false"),
+            self.0.map_or("false", |_| "true"),
             self.0.unwrap_or_else(Span::call_site),
         ));
     }

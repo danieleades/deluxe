@@ -705,13 +705,10 @@ pub fn parse_optional<T: ParseMetaItem + Default>(
     attr: proc_macro::TokenStream,
     errors: &Errors,
 ) -> T {
-    match parse(attr) {
-        Ok(t) => t,
-        Err(e) => {
-            errors.push_syn(e);
-            Default::default()
-        }
-    }
+    parse(attr).unwrap_or_else(|e| {
+        errors.push_syn(e);
+        T::default()
+    })
 }
 
 /// Parses a Rust type out of a token stream, returning a default value on failure.
@@ -725,13 +722,10 @@ pub fn parse2_optional<T: ParseMetaItem + Default>(
     attr: proc_macro2::TokenStream,
     errors: &Errors,
 ) -> T {
-    match parse2(attr) {
-        Ok(t) => t,
-        Err(e) => {
-            errors.push_syn(e);
-            Default::default()
-        }
-    }
+    parse2(attr).unwrap_or_else(|e| {
+        errors.push_syn(e);
+        T::default()
+    })
 }
 
 /// Parses a Rust type out of another type holding a list of [`syn::Attribute`], returning a default value on failure.
@@ -746,13 +740,10 @@ where
     T: HasAttributes,
     R: ParseAttributes<'t, T> + Default,
 {
-    match parse_attributes(obj) {
-        Ok(t) => t,
-        Err(e) => {
-            errors.push_syn(e);
-            Default::default()
-        }
-    }
+    parse_attributes(obj).unwrap_or_else(|e| {
+        errors.push_syn(e);
+        R::default()
+    })
 }
 
 /// Extracts attributes out of another type holding a list of [`syn::Attribute`], then parses them
@@ -768,11 +759,8 @@ where
     T: HasAttributes,
     R: ExtractAttributes<T> + Default,
 {
-    match extract_attributes(obj) {
-        Ok(t) => t,
-        Err(e) => {
-            errors.push_syn(e);
-            Default::default()
-        }
-    }
+    extract_attributes(obj).unwrap_or_else(|e| {
+        errors.push_syn(e);
+        R::default()
+    })
 }

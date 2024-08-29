@@ -1,4 +1,4 @@
-use super::*;
+use super::{Field, FieldData, FieldDefault, ItemDef, ParseTarget, TokenMode};
 use deluxe_core::{
     parse_helpers::{self, FieldStatus},
     ParseAttributes, ParseMetaItem, ParseMode, Result,
@@ -61,10 +61,10 @@ impl ParseMetaItem for StructTransparent {
         errors.push_result(parse_helpers::parse_struct(inputs, |input, path, span| {
             match path {
                 "flatten_named" => {
-                    flatten_named.parse_named_item("flatten_named", input, span, &errors)
+                    flatten_named.parse_named_item("flatten_named", input, span, &errors);
                 }
                 "flatten_unnamed" => {
-                    flatten_unnamed.parse_named_item("flatten_unnamed", input, span, &errors)
+                    flatten_unnamed.parse_named_item("flatten_unnamed", input, span, &errors);
                 }
                 "append" => append.parse_named_item("append", input, span, &errors),
                 "rest" => rest.parse_named_item("rest", input, span, &errors),
@@ -103,7 +103,7 @@ impl ParseMetaItem for StructTransparent {
 }
 
 pub struct Struct<'s> {
-    pub struct_: &'s syn::DataStruct,
+    pub _struct_: &'s syn::DataStruct,
     pub fields: Vec<Field<'s>>,
     pub default: Option<FieldDefault>,
     pub crate_: Option<syn::Path>,
@@ -116,7 +116,7 @@ pub struct Struct<'s> {
 impl<'s> Struct<'s> {
     #[inline]
     pub fn is_transparent(&self) -> bool {
-        self.transparent.as_ref().map(|t| t.value).unwrap_or(false)
+        self.transparent.as_ref().map_or(false, |t| t.value)
             && self
                 .fields
                 .iter()
@@ -126,7 +126,7 @@ impl<'s> Struct<'s> {
                 == 1
     }
     #[inline]
-    pub fn field_names() -> &'static [&'static str] {
+    pub const fn field_names() -> &'static [&'static str] {
         &[
             "transparent",
             "default",
@@ -160,8 +160,7 @@ impl<'s> Struct<'s> {
         let target = self.default.as_ref().map(|_| quote_mixed! { target });
         let target = target
             .as_ref()
-            .map(ParseTarget::Var)
-            .unwrap_or_else(|| ParseTarget::Init(None));
+            .map_or_else(|| ParseTarget::Init(None), ParseTarget::Var);
         let transparent = self.is_transparent();
         let allow_unknown_fields = self.allow_unknown_fields.unwrap_or(false);
         let field_data = FieldData {
@@ -398,9 +397,8 @@ impl<'s> ParseAttributes<'s, syn::DeriveInput> for Struct<'s> {
         parse_helpers::parse_struct_attr_tokens(
             parse_helpers::ref_tokens::<Self, _>(i),
             |inputs, _| {
-                let struct_ = match &i.data {
-                    syn::Data::Struct(s) => s,
-                    _ => return Err(syn::Error::new_spanned(i, "wrong DeriveInput type")),
+                let syn::Data::Struct(struct_) = &i.data else {
+                    return Err(syn::Error::new_spanned(i, "wrong DeriveInput type"));
                 };
                 let errors = crate::Errors::new();
                 let mut transparent = FieldStatus::None;
@@ -425,13 +423,12 @@ impl<'s> ParseAttributes<'s, syn::DeriveInput> for Struct<'s> {
                                 |input, _, span| {
                                     let mut iter = fields.iter().filter(|f| f.is_parsable());
                                     if let Some(first) = iter.next() {
-                                        if first.flatten.as_ref().map(|f| f.value).unwrap_or(false)
-                                        {
+                                        if first.flatten.as_ref().map_or(false, |f| f.value) {
                                             return Err(syn::Error::new(
                                                 span,
                                                 "`transparent` struct field cannot be `flat`",
                                             ));
-                                        } else if first.append.map(|v| *v).unwrap_or(false) {
+                                        } else if first.append.map_or(false, |v| *v) {
                                             return Err(syn::Error::new(
                                                 span,
                                                 "`transparent` struct field cannot be `append`",
@@ -529,7 +526,7 @@ impl<'s> ParseAttributes<'s, syn::DeriveInput> for Struct<'s> {
                     }
                     if let Some(c) = field.container.as_ref() {
                         if container.is_some() {
-                            errors.push(c.span(), "Duplicate `container` field")
+                            errors.push(c.span(), "Duplicate `container` field");
                         } else {
                             container = Some(c);
                         }
@@ -554,7 +551,7 @@ impl<'s> ParseAttributes<'s, syn::DeriveInput> for Struct<'s> {
                 }
                 errors.check()?;
                 Ok(Self {
-                    struct_,
+                    _struct_: struct_,
                     fields,
                     default: default.into(),
                     crate_: crate_.into(),
