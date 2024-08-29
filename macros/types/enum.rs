@@ -9,7 +9,7 @@ use std::collections::{BTreeSet, HashSet};
 use syn::spanned::Spanned;
 
 pub struct Enum<'e> {
-    pub enum_: &'e syn::DataEnum,
+    pub _enum_: &'e syn::DataEnum,
     pub variants: Vec<Variant<'e>>,
     pub default: Option<FieldDefault>,
     pub crate_: Option<syn::Path>,
@@ -255,7 +255,7 @@ impl<'e> ParseAttributes<'e, syn::DeriveInput> for Enum<'e> {
                     }
                     if !variant.flatten.unwrap_or(false) {
                         variant_keys.insert(
-                            [variant.idents.iter().map(|i| i.to_string()).collect()].into(),
+                            [variant.idents.iter().map(ToString::to_string).collect()].into(),
                         );
                         for ident in &variant.idents {
                             if all_idents.contains(&ident) {
@@ -299,7 +299,7 @@ impl<'e> ParseAttributes<'e, syn::DeriveInput> for Enum<'e> {
                 }
                 errors.check()?;
                 Ok(Self {
-                    enum_,
+                    _enum_: enum_,
                     variants,
                     default: default.into(),
                     crate_: crate_.into(),

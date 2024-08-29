@@ -226,9 +226,14 @@ fn impl_for_enum(input: &syn::DeriveInput, errors: &Errors) -> Option<MetaDef> {
 
     let enum_ident = &input.ident;
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-    let (parse, field_names) = enum_attr
-        .as_ref()
-        .map(|e| {
+    let (parse, field_names) = enum_attr.as_ref().map_or_else(
+        || {
+            let fail = quote_mixed! {
+                #priv_::unreachable!()
+            };
+            (fail.clone(), fail)
+        },
+        |e| {
             for v in &e.variants {
                 for f in &v.fields {
                     if let Some(container) = f.container.as_ref() {
@@ -250,13 +255,8 @@ fn impl_for_enum(input: &syn::DeriveInput, errors: &Errors) -> Option<MetaDef> {
                 },
                 field_names,
             )
-        })
-        .unwrap_or_else(|| {
-            let fail = quote_mixed! {
-                #priv_::unreachable!()
-            };
-            (fail.clone(), fail)
-        });
+        },
+    );
     Some(MetaDef {
         parse: quote_mixed! {
             <#priv_::parse_helpers::Brace as #priv_::parse_helpers::ParseDelimited>::parse_delimited_meta_item(

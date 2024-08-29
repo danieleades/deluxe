@@ -131,11 +131,9 @@ impl Errors {
     /// Panics if the error list is empty.
     #[inline]
     pub fn unwrap_err(self) -> Error {
-        if let Some(err) = self.errors.take() {
-            err
-        } else {
-            panic!("expected Errors to not be empty");
-        }
+        self.errors
+            .take()
+            .unwrap_or_else(|| panic!("expected Errors to not be empty"))
     }
     /// Returns a new `Err` if the error list has errors.
     ///

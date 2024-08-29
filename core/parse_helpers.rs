@@ -304,6 +304,8 @@ pub fn peek_eof_or_trailing_comma(input: ParseStream) -> bool {
 
 /// Parses a stream for end-of-stream, or a single comma.
 ///
+/// # Errors
+///
 /// Returns a parse error if any other tokens are present besides a single comma.
 #[inline]
 pub fn parse_eof_or_trailing_comma(input: ParseStream) -> Result<()> {
@@ -321,6 +323,8 @@ pub fn parse_eof_or_trailing_comma(input: ParseStream) -> Result<()> {
 }
 
 /// Runs a parsing function from an empty token stream.
+///
+/// # Errors
 ///
 /// Creates an empty token stream and then calls `func` on it. Any errors returned from `func` will
 /// be changed to make them spanned with `span`.

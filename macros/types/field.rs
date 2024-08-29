@@ -99,7 +99,7 @@ impl ParseMetaItem for FieldFlatten {
                     span,
                     &errors,
                     deluxe_core::with::any_path::parse_meta_item_named,
-                )
+                );
             } else {
                 errors.push_syn(parse_helpers::unknown_error(path, span, &["prefix"]));
                 parse_helpers::skip_meta_item(input);

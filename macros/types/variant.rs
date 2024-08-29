@@ -266,7 +266,7 @@ impl<'v> Variant<'v> {
             if v.flatten.unwrap_or(false) || v.is_skipped() {
                 return None;
             }
-            let idents = v.idents.iter().map(|i| i.to_string()).collect::<Vec<_>>();
+            let idents = v.idents.iter().map(ToString::to_string).collect::<Vec<_>>();
             let parse = v.to_field_parsing_tokens(crate_, priv_, mode, None);
             Some(quote_mixed! {
                 #(#priv_::Option::Some(k @ #idents))|* => {
@@ -488,7 +488,7 @@ impl<'v> Variant<'v> {
                         .unwrap_or_default();
                     quote_mixed! { (#prefix, #names) }
                 } else {
-                    let idents = field.idents.iter().map(|i| i.to_string());
+                    let idents = field.idents.iter().map(ToString::to_string);
                     quote_mixed! { ("", &[#(#idents),*]) }
                 }
             })

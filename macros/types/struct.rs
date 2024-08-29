@@ -103,7 +103,7 @@ impl ParseMetaItem for StructTransparent {
 }
 
 pub struct Struct<'s> {
-    pub struct_: &'s syn::DataStruct,
+    pub _struct_: &'s syn::DataStruct,
     pub fields: Vec<Field<'s>>,
     pub default: Option<FieldDefault>,
     pub crate_: Option<syn::Path>,
@@ -551,7 +551,7 @@ impl<'s> ParseAttributes<'s, syn::DeriveInput> for Struct<'s> {
                 }
                 errors.check()?;
                 Ok(Self {
-                    struct_,
+                    _struct_: struct_,
                     fields,
                     default: default.into(),
                     crate_: crate_.into(),
