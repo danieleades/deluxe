@@ -26,7 +26,7 @@ proc-macro = ["deluxe-core/proc-macro", "syn/proc-macro"]
 
 [dependencies]
 once_cell = "1.13.0"
-proc-macro2 = "1.0.38"
+proc-macro2 = "1.0.92"
 syn = { version = "2.0.10", default-features = false }
 deluxe-core = { path = "./core", version = "0.5.0", default-features = false }
 deluxe-macros = { path = "./macros", version = "0.5.0" }
